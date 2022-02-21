@@ -1,0 +1,542 @@
+
+/*
+   NMCode by this.is.NOISE inc.
+
+   https://github.com/thisisnoiseinc/NMCode
+
+   Built upon:
+
+    "BLE_MIDI Example by neilbags
+    https://github.com/neilbags/arduino-esp32-BLE-MIDI
+
+    Based on BLE_notify example by Evandro Copercini."
+
+    RM edition by rm, for my own Sunvox-related purposes.
+    I want to input scaled notes only and to use the rotary encoder to adjust the volume of the notes instead.
+*/
+
+
+
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLE2902.h>
+#define SERVICE_UUID        "03b80e5a-ede8-4b33-a751-6ce34ec4c700"
+#define CHARACTERISTIC_UUID "7772e5db-3868-4112-a1a9-f2669d106bf3"
+
+// Include the Bounce2 library found here :
+// https://github.com/thomasfredericks/Bounce2
+#include <Bounce2.h>
+
+const int numButtons = 12; // number of buttons
+
+// Pin assignments
+
+int potPin = 36; // Slider
+int rotPin = 39; // Rotary Knob
+int led_Blue = 14; // BLE LED
+int led_Green = 4; // CHANNEL LED
+int buttonPins[numButtons] = {16, 17, 18, 21, 19, 25, 22, 23, 27, 26, 35, 34};
+
+// Bool operators
+
+bool deviceConnected = false;
+bool selectChan = false;
+bool selectRoot = false; // run loop to select root note
+bool selectScale = false; // run loop to select scale
+bool stateChange = false; // flag set to run note reassignment
+
+int velocityValue = 100; // MIDI velocity value
+
+int midiChan = -1; // MIDI channel to send data on
+int noteRoot = 0; // default middle C root note
+
+int noteInterval[11] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // number of semitones each note is apart, default 1 for no scale
+int scaleMajor[11] = {2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2};
+int scaleNatMinor[11] = {2, 1, 2, 2, 1, 2, 2, 2, 1, 2, 2};
+int scaleHarMinor[11] = {2, 1, 2, 2, 1, 3, 1, 2, 1, 2, 2};
+int scalePentMajor[11] = {2, 2, 3, 2, 3, 2, 2, 3, 2, 3, 2};
+int scalePentMinor[11] = {3, 2, 2, 3, 2, 3, 2, 2, 3, 2, 3};
+int scaleWholeTone[11] = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+int scaleBlues[11] = {3, 2, 1, 1, 3, 2, 3, 2, 1, 1, 3};
+
+int buttonNotes[12]; // currently assigned button note
+int buttonPlayed[12]; // what note was played by each button last (in case the page of notes is changed while a note is being played; to prevent hung notes)
+
+// Pot/Slider variables
+int midiCState = 0; // General current state
+int potCstate = 0; // Slider current state
+int rotCState = 0; // Rotary Knob current state
+int faderValue = 5;
+const int numReadings = 15;
+int readings[numReadings];      // the readings from the analog input
+int readIndex = 0;              // the index of the current reading
+int total = 0;                  // the running total
+int average1 = 0; // average current state
+int lastaverage1 = 0; // average previous state
+
+BLECharacteristic *pCharacteristic;
+
+uint8_t midiPacket[] = {
+  0x80,  // header
+  0x80,  // timestamp, not implemented
+  0x00,  // status
+  0x3c,  // 0x3c == 60 == middle c
+  0x00   // velocity
+};
+
+class MyServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+      deviceConnected = true;
+    };
+
+    void onDisconnect(BLEServer* pServer) {
+      deviceConnected = false;
+    }
+};
+
+// create Bounce objects for each button
+Bounce2::Button button1 = Bounce2::Button();
+Bounce2::Button button2 = Bounce2::Button();
+Bounce2::Button button3 = Bounce2::Button();
+Bounce2::Button button4 = Bounce2::Button();
+Bounce2::Button button5 = Bounce2::Button();
+Bounce2::Button button6 = Bounce2::Button();
+Bounce2::Button button7 = Bounce2::Button();
+Bounce2::Button button8 = Bounce2::Button();
+Bounce2::Button button9 = Bounce2::Button();
+Bounce2::Button button10 = Bounce2::Button();
+Bounce2::Button button11 = Bounce2::Button();
+Bounce2::Button button12 = Bounce2::Button();
+
+
+void setup() {
+  int buttonNum = -1; // used to return number of button pressed
+
+  Serial.begin(115200);
+
+  BLEDevice::init("NMSVE.rm");
+
+  // Create the BLE Server
+  BLEServer *pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  // Create the BLE Service
+  BLEService *pService = pServer->createService(BLEUUID(SERVICE_UUID));
+
+  // Create a BLE Characteristic
+  pCharacteristic = pService->createCharacteristic(
+                      BLEUUID(CHARACTERISTIC_UUID),
+                      BLECharacteristic::PROPERTY_READ   |
+                      BLECharacteristic::PROPERTY_WRITE  |
+                      BLECharacteristic::PROPERTY_NOTIFY |
+                      BLECharacteristic::PROPERTY_WRITE_NR
+                    );
+
+  // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
+  // Create a BLE Descriptor
+  pCharacteristic->addDescriptor(new BLE2902());
+
+  // Start the service
+  pService->start();
+
+  // Start advertising
+  BLEAdvertising *pAdvertising = pServer->getAdvertising();
+  pAdvertising->addServiceUUID(pService->getUUID());
+  pAdvertising->start();
+
+  // Button setup
+  button1.attach(buttonPins[0], INPUT_PULLDOWN);
+  button2.attach(buttonPins[1], INPUT_PULLDOWN);
+  button3.attach(buttonPins[2], INPUT_PULLDOWN);
+  button4.attach(buttonPins[3], INPUT_PULLDOWN);
+  button5.attach(buttonPins[4], INPUT_PULLDOWN);
+  button6.attach(buttonPins[5], INPUT_PULLDOWN);
+  button7.attach(buttonPins[6], INPUT_PULLDOWN);
+  button8.attach(buttonPins[7], INPUT_PULLDOWN);
+  button9.attach(buttonPins[8], INPUT_PULLDOWN);
+  button10.attach(buttonPins[9], INPUT_PULLDOWN);
+  button11.attach(buttonPins[10], INPUT_PULLDOWN);
+  button12.attach(buttonPins[11], INPUT_PULLDOWN);
+
+  // Button debounce interval in ms
+  button1.interval(10);
+  button2.interval(10);
+  button3.interval(10);
+  button4.interval(10);
+  button5.interval(10);
+  button6.interval(10);
+  button7.interval(10);
+  button8.interval(10);
+  button9.interval(10);
+  button10.interval(10);
+  button11.interval(10);
+  button12.interval(10);
+
+  // Needed for analog debounce?
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    readings[thisReading] = 0;
+  }
+
+  updateButtons();
+
+  // Set up LED pins
+  pinMode (led_Blue, OUTPUT);
+  pinMode (led_Green, OUTPUT);
+
+  delay(500);
+
+  // Serial.print("selectChan: ");
+  // Serial.println(selectChan);
+
+  while (selectChan == false) { // select MIDI channel
+    digitalWrite(led_Green, HIGH);
+    buttonNum = buttonChoice();
+    if (buttonNum > -1) {
+      midiChan = buttonNum;
+      selectChan = true;
+      buttonNum = -1;
+
+      delay(50);
+      updateButtons();
+
+      //     Serial.print("selectChan: ");
+      //     Serial.println(selectChan);
+    }
+  }
+
+  // Serial.print("midiChan: ");
+  // Serial.println(midiChan);
+
+  flashLEDs(1);
+
+  //  Serial.print("selectScale: ");
+  //  Serial.println(selectScale);
+
+  while (selectScale == false) { // select scale
+
+    digitalWrite(led_Green, HIGH);
+    buttonNum = buttonChoice();
+
+    if ((buttonNum > -1) && (buttonNum < 9)) {
+
+      switch (buttonNum) {
+        case 0: // no scale
+          break;
+        case 1: // major scale
+          memcpy(noteInterval, scaleMajor, sizeof noteInterval);
+          break;
+        case 2: // natural minor
+          memcpy(noteInterval, scaleNatMinor, sizeof noteInterval);
+          break;
+        case 3: // harmonic minor
+          memcpy(noteInterval, scaleHarMinor, sizeof noteInterval);
+          break;
+        case 4: // pentatonic major
+          memcpy(noteInterval, scalePentMajor, sizeof noteInterval);
+          break;
+        case 5: // pentatonic minor
+          memcpy(noteInterval, scalePentMinor, sizeof noteInterval);
+          break;
+        case 6: // whole tone
+          memcpy(noteInterval, scaleWholeTone, sizeof noteInterval);
+          break;
+        case 7: // blues
+          memcpy(noteInterval, scaleBlues, sizeof noteInterval);
+          break;
+      }
+      selectScale = true;
+
+      /*      Serial.print("selectScale: ");
+            Serial.println(selectScale);
+            Serial.print("Scale: ");
+            Serial.println(buttonNum); */
+
+      delay(50);
+      updateButtons();
+
+      buttonNum = -1;
+    }
+  }
+
+  flashLEDs(2);
+
+  //  Serial.print("selectRoot: ");
+  //  Serial.println(selectRoot);
+
+  while (selectRoot == false) { // select root note
+
+    digitalWrite(led_Green, HIGH);
+
+    int buttonNum = buttonChoice();
+
+    if ((buttonNum > -1) && (buttonNum < 12
+                            )) {
+
+      noteRoot = buttonNum;
+
+      selectRoot = true;
+
+      //     Serial.print("selectRoot: ");
+      //      Serial.println(selectRoot);
+
+      delay(50);
+      updateButtons();
+
+      //      Serial.print("Root note: ");
+      //      Serial.println(buttonNum);
+
+      buttonNum = -1;
+    }
+  }
+
+  flashLEDs(3);
+
+  updatePots(); // get initial pot locations (used for setting octave/velocity)
+  setNotes(); // set initial note values
+
+}
+
+void loop() {
+  // Ensure device is connected to BLE
+  if (deviceConnected == false) {
+    digitalWrite(led_Blue, HIGH);
+    delay(1000);
+    digitalWrite(led_Blue, LOW);
+    delay(1000);
+  }
+
+  // Enter Default Mode
+  else {
+    digitalWrite(led_Blue, HIGH);
+    updatePots(); // Check for changes to pot/fader
+
+    if (stateChange) { // Change octave if needed
+      setNotes();
+      stateChange = false;
+
+      if (faderValue == 3 || faderValue == 5 || faderValue == 7 || faderValue == 9) {
+        digitalWrite(led_Green, HIGH);
+      }
+
+      else {
+        digitalWrite(led_Green, LOW);
+      }
+    }
+
+    updateButtons(); // Check for button presses
+    doMIDI(); // Send any required MIDI messages
+  }
+}
+
+void flashLEDs(int flashes) {
+  for (int i = 0; i < flashes; i++) {
+    digitalWrite(led_Green, LOW);
+    digitalWrite(led_Blue, HIGH);
+    delay(50);
+    digitalWrite(led_Blue, LOW);
+    delay(50);
+  }
+}
+
+void updateButtons() {
+  button1.update();
+  button2.update();
+  button3.update();
+  button4.update();
+  button5.update();
+  button6.update();
+  button7.update();
+  button8.update();
+  button9.update();
+  button10.update();
+  button11.update();
+  button12.update();
+}
+
+void updatePots() {
+  int newFaderValue = map(analogRead(potPin), 0, 4095, 3, 9);
+  if (faderValue != newFaderValue) {
+    stateChange = true;
+    faderValue = newFaderValue;
+
+    //    Serial.print("faderValue: ");
+    //    Serial.println(faderValue);
+  }
+
+  potAverage();
+
+  if (average1 != lastaverage1) {
+    lastaverage1 = average1;
+    velocityValue = average1;
+  }
+}
+
+void potAverage() {
+
+  for (int p = 0; p < 15; p++) {
+    rotCState = analogRead(rotPin);
+    midiCState = map(rotCState, 0, 4095, 0, 127);
+
+    // subtract the last reading:
+    total = total - readings[readIndex];
+    // read from the sensor:
+    readings[readIndex] = midiCState;
+    // add the reading to the total:
+    total = total + readings[readIndex];
+    // advance to the next position in the array:
+    readIndex = readIndex + 1;
+
+    // if we're at the end of the array...
+    if (readIndex >= numReadings) {
+      // ...wrap around to the beginning:
+      readIndex = 0;
+    }
+
+    // calculate the average:
+    average1 = total / numReadings;
+    delay(1);        // delay in between reads for stability
+  }
+}
+
+void doMIDI() {
+  if (button1.rose()) {
+    sendNoteOn(buttonNotes[0]);
+    buttonPlayed[0] = buttonNotes[0];
+  } else if (button1.fell()) {
+    sendNoteOff(buttonPlayed[0]);
+  }
+
+  else if (button2.rose()) {
+    sendNoteOn(buttonNotes[1]);
+    buttonPlayed[1] = buttonNotes[1];
+  } else if (button2.fell()) {
+    sendNoteOff(buttonPlayed[1]);
+  }
+
+  else if (button3.rose()) {
+    sendNoteOn(buttonNotes[2]);
+    buttonPlayed[2] = buttonNotes[2];
+  } else if (button3.fell()) {
+    sendNoteOff(buttonPlayed[2]);
+  }
+
+  else if (button4.rose()) {
+    sendNoteOn(buttonNotes[3]);
+    buttonPlayed[3] = buttonNotes[3];
+  } else if (button4.fell()) {
+    sendNoteOff(buttonPlayed[3]);
+  }
+
+  else if (button5.rose()) {
+    sendNoteOn(buttonNotes[4]);
+    buttonPlayed[4] = buttonNotes[4];
+  } else if (button5.fell()) {
+    sendNoteOff(buttonPlayed[4]);
+  }
+
+  else if (button6.rose()) {
+    sendNoteOn(buttonNotes[5]);
+    buttonPlayed[5] = buttonNotes[5];
+  } else if (button6.fell()) {
+    sendNoteOff(buttonPlayed[5]);
+  }
+
+  else if (button7.rose()) {
+    sendNoteOn(buttonNotes[6]);
+    buttonPlayed[6] = buttonNotes[6];
+  } else if (button7.fell()) {
+    sendNoteOff(buttonPlayed[6]);
+  }
+
+  else if (button8.rose()) {
+    sendNoteOn(buttonNotes[7]);
+    buttonPlayed[7] = buttonNotes[7];
+  } else if (button8.fell()) {
+    sendNoteOff(buttonPlayed[7]);
+  }
+
+  else if (button9.rose()) {
+    sendNoteOn(buttonNotes[8]);
+    buttonPlayed[8] = buttonNotes[8];
+  } else if (button9.fell()) {
+    sendNoteOff(buttonPlayed[8]);
+  }
+
+  else if (button10.rose()) {
+    sendNoteOn(buttonNotes[9]);
+    buttonPlayed[9] = buttonNotes[9];
+  } else if (button10.fell()) {
+    sendNoteOff(buttonPlayed[9]);
+  }
+
+  else if (button11.rose()) {
+    sendNoteOn(buttonNotes[10]);
+    buttonPlayed[10] = buttonNotes[10];
+  } else if (button11.fell()) {
+    sendNoteOff(buttonPlayed[10]);
+  }
+
+  else if (button12.rose()) {
+    sendNoteOn(buttonNotes[11]);
+    buttonPlayed[11] = buttonNotes[11];
+  } else if (button12.fell()) {
+    sendNoteOff(buttonPlayed[11]);
+  }
+}
+
+void setNotes() {
+  buttonNotes[0] = noteRoot + (faderValue * 12);
+  //  Serial.print("Root note: ");
+  //  Serial.println(buttonNotes[0]);
+
+  for (int i = 1; i < 12; i++) {
+    buttonNotes[i] = buttonNotes[i - 1] + noteInterval[i - 1];
+
+    /*    Serial.print("noteInterval[");
+        Serial.print(i);
+        Serial.print("]: ");
+        Serial.println(noteInterval[i - 1]);
+
+        Serial.print("buttonNotes[");
+        Serial.print(i);
+        Serial.print("]: ");
+        Serial.println(buttonNotes[i]); */
+  }
+}
+
+int buttonChoice() {
+  updateButtons();
+
+  if (button1.rose()) return 0;
+  else if (button2.rose()) return 1;
+  else if (button3.rose()) return 2;
+  else if (button4.rose()) return 3;
+  else if (button5.rose()) return 4;
+  else if (button6.rose()) return 5;
+  else if (button7.rose()) return 6;
+  else if (button8.rose()) return 7;
+  else if (button9.rose()) return 8;
+  else if (button10.rose()) return 9;
+  else if (button11.rose()) return 10;
+  else if (button12.rose()) return 11;
+  else return -1;
+
+  delay(100);
+}
+
+void sendNoteOn(int note) {
+  midiPacket[2] = midiChan + 144;
+  midiPacket[3] = note;
+  midiPacket[4] = velocityValue;
+  pCharacteristic->setValue(midiPacket, 5);
+  pCharacteristic->notify();
+}
+
+void sendNoteOff(int note) {
+  midiPacket[2] = midiChan + 128;
+  midiPacket[3] = note;
+  midiPacket[4] = 0;
+  pCharacteristic->setValue(midiPacket, 5);
+  pCharacteristic->notify();
+}
