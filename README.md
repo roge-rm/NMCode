@@ -1,5 +1,5 @@
-# NMCode.rm
-The Brains That Make Noise Machine Tick - rm Edition.
+# NMSVE.rm
+Noise Machine Straight Vibin Edition - rm Edit.
 
 This is a fork I created to change the functionality of the NMSVE a bit. I really enjoy the hardware and the BLE connectivity but I want to be able to input scales and use the rotary pot to adjust volume as I input notes into Sunvox. This is a bit of a mishmash of my own code from previous projects (I'm very familiar with the Bounce2 library so I used it for debouncing here) as well as the excellent work done by the this.is.Noise team.
 
