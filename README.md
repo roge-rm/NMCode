@@ -5,24 +5,16 @@ This is a fork I created to change the functionality of the NMSVE a bit. I reall
 
 On startup the device prompts for a MIDI channel, as before. Once the MIDI channel is select the scale is selected from the following choices:
 
-1	None
+* 1	None
+* 2	Major
+* 3	Natural Minor
+* 4	Harmonic Minor
+* 5	Pentatonic Major
+* 6	Pentatonic Minor
+* 7	Whole Tone
+* 8	Blues
 
-2	Major
-
-3	Natural Minor
-
-4	Harmonic Minor
-
-5	Pentatonic Major
-
-6	Pentatonic Minor
-
-7	Whole Tone
-
-8	Blues
-
-
-Once the scale is selected you are prompted for the root note. This is chosen using the same note layout as original firmware. (starting with C at the top right).
+Once the scale is selected you are prompted for the root note. This is chosen using the same note layout as original firmware. (starting with C at the top left).
 
 Once booted the buttons are reassigned to whatever scale you chose, starting from the top left, with the root note of choice. The rotary knob will change the volume of each keypress and the fader will choose the octave, as before.
 
