@@ -5,10 +5,11 @@ This is a fork I (rm) created to change the functionality of the NMSVE a bit. I 
 
 On startup the device prompts for a MIDI channel, as before. Once the MIDI channel is selected the scale is selected from the following choices:
 
-* 1	None
-* 2	Major
-* 3	Natural Minor
-* 4	Harmonic Minor
+
+* 1 Major
+* 2	Natural Minor
+* 3	Harmonic Minor
+* 4	None
 * 5	Pentatonic Major
 * 6	Pentatonic Minor
 * 7	Whole Tone
