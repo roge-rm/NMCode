@@ -44,9 +44,12 @@ bool deviceConnected = false;
 bool selectChan = false;
 bool selectRoot = false; // run loop to select root note
 bool selectScale = false; // run loop to select scale
+bool selectKnob = false; // run loop to select knob function
 bool stateChange = false; // flag set to run note reassignment
 
 int velocityValue = 100; // MIDI velocity value
+
+int knobFunction = 0; // change knob function: 0 = velocity, 1 = modulation, 2 = pan, 3 = expression
 
 int midiChan = -1; // MIDI channel to send data on
 int noteRoot = 0; // default middle C root note
@@ -207,16 +210,16 @@ void setup() {
     if ((buttonNum > -1) && (buttonNum < 9)) {
 
       switch (buttonNum) {
-        case 0: // no scale
-          break;
-        case 1: // major scale
+        case 0: // major scale
           memcpy(noteInterval, scaleMajor, sizeof noteInterval);
           break;
-        case 2: // natural minor
+        case 1: // natural minor
           memcpy(noteInterval, scaleNatMinor, sizeof noteInterval);
           break;
-        case 3: // harmonic minor
+        case 2: // harmonic minor
           memcpy(noteInterval, scaleHarMinor, sizeof noteInterval);
+          break;
+        case 3: // no scale
           break;
         case 4: // pentatonic major
           memcpy(noteInterval, scalePentMajor, sizeof noteInterval);
@@ -245,9 +248,8 @@ void setup() {
   while (selectRoot == false) { // select root note
 
     digitalWrite(led_Green, HIGH);
-    int buttonNum = buttonChoice();
-    if ((buttonNum > -1) && (buttonNum < 12
-                            )) {
+    buttonNum = buttonChoice();
+    if ((buttonNum > -1) && (buttonNum < 12)) {
       noteRoot = buttonNum;
       selectRoot = true;
       delay(50);
@@ -255,8 +257,23 @@ void setup() {
       buttonNum = -1;
     }
   }
-  
+
   flashLEDs(3);
+
+  while (selectKnob == false) { // select root note
+
+    digitalWrite(led_Green, HIGH);
+    buttonNum = buttonChoice();
+    if ((buttonNum > -1) && (buttonNum < 4)) {
+      knobFunction = buttonNum;
+      selectKnob = true;
+      delay(50);
+      updateButtons();
+      buttonNum = -1;
+    }
+  }
+
+  flashLEDs(4);
   updatePots(); // get initial pot locations (used for setting octave/velocity)
   setNotes(); // set initial note values
 }
@@ -298,7 +315,7 @@ void flashLEDs(int flashes) {
     digitalWrite(led_Blue, HIGH);
     delay(50);
     digitalWrite(led_Blue, LOW);
-    delay(150);
+    delay(100);
   }
 }
 
@@ -328,7 +345,20 @@ void updatePots() {
 
   if (average1 != lastaverage1) {
     lastaverage1 = average1;
-    velocityValue = average1;
+    switch (knobFunction) {
+      case 0: // velocity
+        velocityValue = average1;
+        break;
+      case 1:
+        sendCC(1, average1);
+        break;
+      case 2:
+        sendCC(10, average1);
+        break;
+      case 3:
+        sendCC(11, average1);
+        break;
+    }
   }
 }
 
@@ -481,6 +511,14 @@ void sendNoteOff(int note) {
   midiPacket[2] = midiChan + 128;
   midiPacket[3] = note;
   midiPacket[4] = 0;
+  pCharacteristic->setValue(midiPacket, 5);
+  pCharacteristic->notify();
+}
+
+void sendCC(int CC, int value) {
+  midiPacket[2] = midiChan + 176;
+  midiPacket[3] = CC;
+  midiPacket[4] = value;
   pCharacteristic->setValue(midiPacket, 5);
   pCharacteristic->notify();
 }
