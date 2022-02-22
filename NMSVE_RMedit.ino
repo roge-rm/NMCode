@@ -26,6 +26,7 @@
 
 // Include the Bounce2 library found here :
 // https://github.com/thomasfredericks/Bounce2
+#define BOUNCE_WITH_PROMPT_DETECTION
 #include <Bounce2.h>
 
 const int numButtons = 12; // number of buttons
@@ -67,7 +68,7 @@ int buttonNotes[12]; // currently assigned button note
 int buttonPlayed[12]; // what note was played by each button last (in case the page of notes is changed while a note is being played; to prevent hung notes)
 
 // Fader/rotary variables
-int faderValue = 5;
+int faderValue = 4;
 
 const int numReadings = 15;
 int readings[numReadings];      // the readings from the analog input
@@ -161,18 +162,18 @@ void setup() {
   button12.attach(buttonPins[11], INPUT);
 
   // Button debounce interval in ms
-  button1.interval(10);
-  button2.interval(10);
-  button3.interval(10);
-  button4.interval(10);
-  button5.interval(10);
-  button6.interval(10);
-  button7.interval(10);
-  button8.interval(10);
-  button9.interval(10);
-  button10.interval(10);
-  button11.interval(10);
-  button12.interval(10);
+  button1.interval(5);
+  button2.interval(5);
+  button3.interval(5);
+  button4.interval(5);
+  button5.interval(5);
+  button6.interval(5);
+  button7.interval(5);
+  button8.interval(5);
+  button9.interval(5);
+  button10.interval(5);
+  button11.interval(5);
+  button12.interval(5);
 
   // Needed for analog debounce?
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
@@ -296,7 +297,7 @@ void loop() {
       setNotes();
       stateChange = false;
 
-      if (faderValue == 3 || faderValue == 5 || faderValue == 7 || faderValue == 9) {
+      if (faderValue == 2 || faderValue == 4 || faderValue == 6 || faderValue == 8) {
         digitalWrite(led_Green, HIGH);
       }
       else {
@@ -335,7 +336,7 @@ void updateButtons() {
 }
 
 void updatePots() {
-  int newFaderValue = map(analogRead(faderPin), 0, 4095, 3, 9);
+  int newFaderValue = map(analogRead(faderPin), 0, 4095, 2, 8);
   if (faderValue != newFaderValue) {
     stateChange = true;
     faderValue = newFaderValue;
@@ -473,7 +474,7 @@ void doMIDI() {
 }
 
 void setNotes() {
-  buttonNotes[0] = noteRoot + (faderValue * 12);
+  buttonNotes[0] = noteRoot + ((faderValue) * 12);
   for (int i = 1; i < 12; i++) {
     buttonNotes[i] = buttonNotes[i - 1] + noteInterval[i - 1];
   }
@@ -505,6 +506,7 @@ void sendNoteOn(int note) {
   midiPacket[4] = velocityValue;
   pCharacteristic->setValue(midiPacket, 5);
   pCharacteristic->notify();
+  delay(1);
 }
 
 void sendNoteOff(int note) {
@@ -513,6 +515,7 @@ void sendNoteOff(int note) {
   midiPacket[4] = 0;
   pCharacteristic->setValue(midiPacket, 5);
   pCharacteristic->notify();
+  delay(1);
 }
 
 void sendCC(int CC, int value) {
@@ -521,4 +524,5 @@ void sendCC(int CC, int value) {
   midiPacket[4] = value;
   pCharacteristic->setValue(midiPacket, 5);
   pCharacteristic->notify();
+  delay(1);
 }
