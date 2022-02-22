@@ -395,77 +395,77 @@ void doMIDI() {
     sendNoteOff(buttonPlayed[0]);
   }
 
-  else if (button2.rose()) {
+  if (button2.rose()) {
     sendNoteOn(buttonNotes[1]);
     buttonPlayed[1] = buttonNotes[1];
   } else if (button2.fell()) {
     sendNoteOff(buttonPlayed[1]);
   }
 
-  else if (button3.rose()) {
+  if (button3.rose()) {
     sendNoteOn(buttonNotes[2]);
     buttonPlayed[2] = buttonNotes[2];
   } else if (button3.fell()) {
     sendNoteOff(buttonPlayed[2]);
   }
 
-  else if (button4.rose()) {
+  if (button4.rose()) {
     sendNoteOn(buttonNotes[3]);
     buttonPlayed[3] = buttonNotes[3];
   } else if (button4.fell()) {
     sendNoteOff(buttonPlayed[3]);
   }
 
-  else if (button5.rose()) {
+  if (button5.rose()) {
     sendNoteOn(buttonNotes[4]);
     buttonPlayed[4] = buttonNotes[4];
   } else if (button5.fell()) {
     sendNoteOff(buttonPlayed[4]);
   }
 
-  else if (button6.rose()) {
+  if (button6.rose()) {
     sendNoteOn(buttonNotes[5]);
     buttonPlayed[5] = buttonNotes[5];
   } else if (button6.fell()) {
     sendNoteOff(buttonPlayed[5]);
   }
 
-  else if (button7.rose()) {
+  if (button7.rose()) {
     sendNoteOn(buttonNotes[6]);
     buttonPlayed[6] = buttonNotes[6];
   } else if (button7.fell()) {
     sendNoteOff(buttonPlayed[6]);
   }
 
-  else if (button8.rose()) {
+  if (button8.rose()) {
     sendNoteOn(buttonNotes[7]);
     buttonPlayed[7] = buttonNotes[7];
   } else if (button8.fell()) {
     sendNoteOff(buttonPlayed[7]);
   }
 
-  else if (button9.rose()) {
+  if (button9.rose()) {
     sendNoteOn(buttonNotes[8]);
     buttonPlayed[8] = buttonNotes[8];
   } else if (button9.fell()) {
     sendNoteOff(buttonPlayed[8]);
   }
 
-  else if (button10.rose()) {
+  if (button10.rose()) {
     sendNoteOn(buttonNotes[9]);
     buttonPlayed[9] = buttonNotes[9];
   } else if (button10.fell()) {
     sendNoteOff(buttonPlayed[9]);
   }
 
-  else if (button11.rose()) {
+  if (button11.rose()) {
     sendNoteOn(buttonNotes[10]);
     buttonPlayed[10] = buttonNotes[10];
   } else if (button11.fell()) {
     sendNoteOff(buttonPlayed[10]);
   }
 
-  else if (button12.rose()) {
+  if (button12.rose()) {
     sendNoteOn(buttonNotes[11]);
     buttonPlayed[11] = buttonNotes[11];
   } else if (button12.fell()) {
