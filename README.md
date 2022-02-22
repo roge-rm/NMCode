@@ -14,7 +14,7 @@ On startup the device prompts for a MIDI channel, as before. Once the MIDI chann
 * 7	Whole Tone
 * 8	Blues
 
-Once the scale is selected you are prompted for the root note. This is chosen using the same note layout as original firmware. (starting with C at the top left).
+After the scale is selected you are prompted for the root note, this is chosen using the same note layout as original firmware (starting with C at the top left).
 
 After the root note is selected you choose the function of the rotary knob:
 
