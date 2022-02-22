@@ -11,8 +11,10 @@
 
     Based on BLE_notify example by Evandro Copercini."
 
+    -----
     RM.edit by rm, for my own Sunvox-related purposes.
-    I want to input scaled notes only and to use the rotary encoder to adjust the volume of the notes instead.
+    This software 7 different scales (or no scale) as well as choosing the root note of your choice.
+    See https://github.com/hunked/NMCode for more information.
 */
 
 #include <BLEDevice.h>
@@ -30,8 +32,8 @@ const int numButtons = 12; // number of buttons
 
 // Pin assignments
 
-int potPin = 36; // Slider
-int rotPin = 39; // Rotary Knob
+int faderPin = 36; // Slider
+int rotaryPin = 39; // Rotary Knob
 int led_Blue = 14; // BLE LED
 int led_Green = 4; // CHANNEL LED
 int buttonPins[numButtons] = {16, 17, 18, 21, 19, 25, 22, 23, 27, 26, 35, 34};
@@ -61,11 +63,9 @@ int scaleBlues[11] = {3, 2, 1, 1, 3, 2, 3, 2, 1, 1, 3};
 int buttonNotes[12]; // currently assigned button note
 int buttonPlayed[12]; // what note was played by each button last (in case the page of notes is changed while a note is being played; to prevent hung notes)
 
-// Pot/Slider variables
-int midiCState = 0; // General current state
-int potCstate = 0; // Slider current state
-int rotCState = 0; // Rotary Knob current state
+// Fader/rotary variables
 int faderValue = 5;
+
 const int numReadings = 15;
 int readings[numReadings];      // the readings from the analog input
 int readIndex = 0;              // the index of the current reading
@@ -111,7 +111,7 @@ Bounce2::Button button12 = Bounce2::Button();
 void setup() {
   int buttonNum = -1; // used to return number of button pressed
 
-  Serial.begin(115200);
+  //Serial.begin(115200);
 
   BLEDevice::init("NMSVE.rm");
 
@@ -194,9 +194,6 @@ void setup() {
 
       delay(50);
       updateButtons();
-
-      //     Serial.print("selectChan: ");
-      //     Serial.println(selectChan);
     }
   }
 
@@ -301,7 +298,7 @@ void flashLEDs(int flashes) {
     digitalWrite(led_Blue, HIGH);
     delay(50);
     digitalWrite(led_Blue, LOW);
-    delay(50);
+    delay(150);
   }
 }
 
@@ -321,7 +318,7 @@ void updateButtons() {
 }
 
 void updatePots() {
-  int newFaderValue = map(analogRead(potPin), 0, 4095, 3, 9);
+  int newFaderValue = map(analogRead(faderPin), 0, 4095, 3, 9);
   if (faderValue != newFaderValue) {
     stateChange = true;
     faderValue = newFaderValue;
@@ -338,13 +335,10 @@ void updatePots() {
 void potAverage() {
 
   for (int p = 0; p < 15; p++) {
-    rotCState = analogRead(rotPin);
-    midiCState = map(rotCState, 0, 4095, 0, 127);
-
     // subtract the last reading:
     total = total - readings[readIndex];
     // read from the sensor:
-    readings[readIndex] = midiCState;
+    readings[readIndex] = map(analogRead(rotaryPin), 0, 4095, 0, 127);
     // add the reading to the total:
     total = total + readings[readIndex];
     // advance to the next position in the array:
