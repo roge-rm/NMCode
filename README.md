@@ -1,6 +1,8 @@
 # NMSVE.rm
 Noise Machine Straight Vibin Edition - RMedit.
 
+<img src="https://raw.githubusercontent.com/hunked/NMCode/main/NMSVE%20sunvox.jpg" width="500">
+
 This is a fork I (rm) created to change the functionality of the NMSVE a bit. I really enjoy the hardware and the BLE connectivity but I want to be able to input scales and use the rotary pot to adjust volume as I input notes into Sunvox. This is a bit of a mishmash of my own code from previous projects (I'm very familiar with the Bounce2 library so I used it for debouncing here) as well as the excellent work done by the this.is.Noise team.
 
 On startup the device prompts for a MIDI channel, as before. Once the MIDI channel is selected the scale is selected from the following choices:
