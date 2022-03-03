@@ -296,11 +296,11 @@ void loop() {
       setNotes();
       stateChange = false;
 
-      if (faderValue == 2 || faderValue == 4 || faderValue == 6 || faderValue == 8) {
-        digitalWrite(led_Green, HIGH);
+      if (faderValue == 0 || faderValue == 2 || faderValue == 4 || faderValue == 6 || faderValue == 8) {
+        digitalWrite(led_Green, LOW);
       }
       else {
-        digitalWrite(led_Green, LOW);
+        digitalWrite(led_Green, HIGH);
       }
     }
 
@@ -335,7 +335,7 @@ void updateButtons() {
 }
 
 void updatePots() {
-  int newFaderValue = map(analogRead(faderPin), 0, 4095, 1, 8);
+  int newFaderValue = map(analogRead(faderPin), 0, 4095, 0, 8);
   if (faderValue != newFaderValue) {
     stateChange = true;
     faderValue = newFaderValue;
