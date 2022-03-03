@@ -1,4 +1,3 @@
-
 /*
    NMCode by this.is.NOISE inc.
 
@@ -336,7 +335,7 @@ void updateButtons() {
 }
 
 void updatePots() {
-  int newFaderValue = map(analogRead(faderPin), 0, 4095, 2, 8);
+  int newFaderValue = map(analogRead(faderPin), 0, 4095, 1, 8);
   if (faderValue != newFaderValue) {
     stateChange = true;
     faderValue = newFaderValue;
