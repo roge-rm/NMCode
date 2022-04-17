@@ -121,40 +121,6 @@ Bounce2::Button button12 = Bounce2::Button();
 
 
 void setup() {
-  DIN_MIDI.begin(MIDI_CHANNEL_OMNI);
-
-  if (midiBT) {
-    BLEDevice::init("NMSVE.rm");
-
-    // Create the BLE Server
-    BLEServer *pServer = BLEDevice::createServer();
-    pServer->setCallbacks(new MyServerCallbacks());
-
-    // Create the BLE Service
-    BLEService *pService = pServer->createService(BLEUUID(SERVICE_UUID));
-
-    // Create a BLE Characteristic
-    pCharacteristic = pService->createCharacteristic(
-                        BLEUUID(CHARACTERISTIC_UUID),
-                        BLECharacteristic::PROPERTY_READ   |
-                        BLECharacteristic::PROPERTY_WRITE  |
-                        BLECharacteristic::PROPERTY_NOTIFY |
-                        BLECharacteristic::PROPERTY_WRITE_NR
-                      );
-
-    // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
-    // Create a BLE Descriptor
-    pCharacteristic->addDescriptor(new BLE2902());
-
-    // Start the service
-    pService->start();
-
-    // Start advertising
-    BLEAdvertising *pAdvertising = pServer->getAdvertising();
-    pAdvertising->addServiceUUID(pService->getUUID());
-    pAdvertising->start();
-  }
-
   // Button setup
   button1.attach(buttonPins[0], INPUT);
   button2.attach(buttonPins[1], INPUT);
@@ -199,10 +165,48 @@ void setup() {
   pinMode (led_Blue, OUTPUT);
   pinMode (led_Green, OUTPUT);
 
-  delay(500);
+  delay(100);
 
   setupMode(); // run selection for output, channel, root note, scale
 
+  if (midiDIN) {
+    DIN_MIDI.begin(MIDI_CHANNEL_OMNI);
+  }
+
+  if (midiBT) {
+    BLEDevice::init("NMSVE.rm");
+
+    // Create the BLE Server
+    BLEServer *pServer = BLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
+
+    // Create the BLE Service
+    BLEService *pService = pServer->createService(BLEUUID(SERVICE_UUID));
+
+    // Create a BLE Characteristic
+    pCharacteristic = pService->createCharacteristic(
+                        BLEUUID(CHARACTERISTIC_UUID),
+                        BLECharacteristic::PROPERTY_READ   |
+                        BLECharacteristic::PROPERTY_WRITE  |
+                        BLECharacteristic::PROPERTY_NOTIFY |
+                        BLECharacteristic::PROPERTY_WRITE_NR
+                      );
+
+    // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
+    // Create a BLE Descriptor
+    pCharacteristic->addDescriptor(new BLE2902());
+
+    // Start the service
+    pService->start();
+
+    // Start advertising
+    BLEAdvertising *pAdvertising = pServer->getAdvertising();
+    pAdvertising->addServiceUUID(pService->getUUID());
+    pAdvertising->start();
+  }
+
+  delay(250);
+  
   updatePots(); // get initial pot locations (used for setting octave/velocity)
   setNotes(); // set initial note values
 }
@@ -237,7 +241,7 @@ void loop() {
     doMIDI(); // Send any required MIDI messages
 
     if (average1
-    == 0) { // if velocity is turned all the way down, allow for button combinations to change settings
+        == 0) { // if velocity is turned all the way down, allow for button combinations to change settings
       if (button9.pressed() && button10.pressed()) { // press 9 & 10 to select root, scale, and knob function again
         flashLEDs(3);
         selectScale = false;
@@ -257,7 +261,7 @@ void loop() {
     }
   }
 
-  DIN_MIDI.read();
+  if (midiDIN) DIN_MIDI.read();
 }
 
 void setupMode() {
