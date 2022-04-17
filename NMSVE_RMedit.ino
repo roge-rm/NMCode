@@ -28,6 +28,10 @@
 #define BOUNCE_WITH_PROMPT_DETECTION
 #include <Bounce2.h>
 
+#include <MIDI.h>
+
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial, DIN_MIDI);
+
 const int numButtons = 12; // number of buttons
 
 // Pin assignments
@@ -41,23 +45,28 @@ int buttonPins[numButtons] = {16, 17, 18, 21, 19, 25, 22, 23, 27, 26, 35, 34};
 // Bool operators
 
 bool deviceConnected = false;
-bool selectChan = false;
-bool selectRoot = false; // run loop to select root note
+bool selectOutput = false; // choose between both BT & TRS, only BT, only TRS
+bool selectChan = false; // select MIDI channel
 bool selectScale = false; // run loop to select scale
+bool selectRoot = false; // run loop to select root note
 bool selectKnob = false; // run loop to select knob function
 bool stateChange = false; // flag set to run note reassignment
+
+bool midiDIN = true;
+bool midiBT = true;
 
 int velocityValue = 100; // MIDI velocity value
 
 int knobFunction = 0; // change knob function: 0 = velocity, 1 = modulation, 2 = pan, 3 = expression
 
-int midiChan = -1; // MIDI channel to send data on
+int midiChan = 1; // MIDI channel to send data on
 int noteRoot = 0; // default middle C root note
 
-int noteInterval[11] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // number of semitones each note is apart, default 1 for no scale
+int noteInterval[11] = {2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2}; // number of semitones each note is apart, default is major
 int scaleMajor[11] = {2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2};
 int scaleNatMinor[11] = {2, 1, 2, 2, 1, 2, 2, 2, 1, 2, 2};
 int scaleHarMinor[11] = {2, 1, 2, 2, 1, 3, 1, 2, 1, 2, 2};
+int scaleNone[11] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 int scalePentMajor[11] = {2, 2, 3, 2, 3, 2, 2, 3, 2, 3, 2};
 int scalePentMinor[11] = {3, 2, 2, 3, 2, 3, 2, 2, 3, 2, 3};
 int scaleWholeTone[11] = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
@@ -112,39 +121,39 @@ Bounce2::Button button12 = Bounce2::Button();
 
 
 void setup() {
-  int buttonNum = -1; // used to return number of button pressed
+  DIN_MIDI.begin(MIDI_CHANNEL_OMNI);
 
-  //Serial.begin(115200);
+  if (midiBT) {
+    BLEDevice::init("NMSVE.rm");
 
-  BLEDevice::init("NMSVE.rm");
+    // Create the BLE Server
+    BLEServer *pServer = BLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
 
-  // Create the BLE Server
-  BLEServer *pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new MyServerCallbacks());
+    // Create the BLE Service
+    BLEService *pService = pServer->createService(BLEUUID(SERVICE_UUID));
 
-  // Create the BLE Service
-  BLEService *pService = pServer->createService(BLEUUID(SERVICE_UUID));
+    // Create a BLE Characteristic
+    pCharacteristic = pService->createCharacteristic(
+                        BLEUUID(CHARACTERISTIC_UUID),
+                        BLECharacteristic::PROPERTY_READ   |
+                        BLECharacteristic::PROPERTY_WRITE  |
+                        BLECharacteristic::PROPERTY_NOTIFY |
+                        BLECharacteristic::PROPERTY_WRITE_NR
+                      );
 
-  // Create a BLE Characteristic
-  pCharacteristic = pService->createCharacteristic(
-                      BLEUUID(CHARACTERISTIC_UUID),
-                      BLECharacteristic::PROPERTY_READ   |
-                      BLECharacteristic::PROPERTY_WRITE  |
-                      BLECharacteristic::PROPERTY_NOTIFY |
-                      BLECharacteristic::PROPERTY_WRITE_NR
-                    );
+    // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
+    // Create a BLE Descriptor
+    pCharacteristic->addDescriptor(new BLE2902());
 
-  // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
-  // Create a BLE Descriptor
-  pCharacteristic->addDescriptor(new BLE2902());
+    // Start the service
+    pService->start();
 
-  // Start the service
-  pService->start();
-
-  // Start advertising
-  BLEAdvertising *pAdvertising = pServer->getAdvertising();
-  pAdvertising->addServiceUUID(pService->getUUID());
-  pAdvertising->start();
+    // Start advertising
+    BLEAdvertising *pAdvertising = pServer->getAdvertising();
+    pAdvertising->addServiceUUID(pService->getUUID());
+    pAdvertising->start();
+  }
 
   // Button setup
   button1.attach(buttonPins[0], INPUT);
@@ -174,7 +183,12 @@ void setup() {
   button11.interval(5);
   button12.interval(5);
 
-  // Needed for analog debounce?
+  button9.setPressedState(LOW);
+  button10.setPressedState(LOW);
+  button11.setPressedState(LOW);
+  button12.setPressedState(LOW);
+
+  // needed for analog debounce?
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
     readings[thisReading] = 0;
   }
@@ -187,100 +201,15 @@ void setup() {
 
   delay(500);
 
-  while (selectChan == false) { // select MIDI channel
-    digitalWrite(led_Green, HIGH);
-    buttonNum = buttonChoice();
-    if (buttonNum > -1) {
-      midiChan = buttonNum;
-      selectChan = true;
-      buttonNum = -1;
+  setupMode(); // run selection for output, channel, root note, scale
 
-      delay(50);
-      updateButtons();
-    }
-  }
-
-  flashLEDs(1);
-
-  while (selectScale == false) { // select scale
-
-    digitalWrite(led_Green, HIGH);
-    buttonNum = buttonChoice();
-
-    if ((buttonNum > -1) && (buttonNum < 9)) {
-
-      switch (buttonNum) {
-        case 0: // major scale
-          memcpy(noteInterval, scaleMajor, sizeof noteInterval);
-          break;
-        case 1: // natural minor
-          memcpy(noteInterval, scaleNatMinor, sizeof noteInterval);
-          break;
-        case 2: // harmonic minor
-          memcpy(noteInterval, scaleHarMinor, sizeof noteInterval);
-          break;
-        case 3: // no scale
-          break;
-        case 4: // pentatonic major
-          memcpy(noteInterval, scalePentMajor, sizeof noteInterval);
-          break;
-        case 5: // pentatonic minor
-          memcpy(noteInterval, scalePentMinor, sizeof noteInterval);
-          break;
-        case 6: // whole tone
-          memcpy(noteInterval, scaleWholeTone, sizeof noteInterval);
-          break;
-        case 7: // blues
-          memcpy(noteInterval, scaleBlues, sizeof noteInterval);
-          break;
-      }
-      selectScale = true;
-
-      delay(50);
-      updateButtons();
-
-      buttonNum = -1;
-    }
-  }
-
-  flashLEDs(2);
-
-  while (selectRoot == false) { // select root note
-
-    digitalWrite(led_Green, HIGH);
-    buttonNum = buttonChoice();
-    if ((buttonNum > -1) && (buttonNum < 12)) {
-      noteRoot = buttonNum;
-      selectRoot = true;
-      delay(50);
-      updateButtons();
-      buttonNum = -1;
-    }
-  }
-
-  flashLEDs(3);
-
-  while (selectKnob == false) { // select root note
-
-    digitalWrite(led_Green, HIGH);
-    buttonNum = buttonChoice();
-    if ((buttonNum > -1) && (buttonNum < 4)) {
-      knobFunction = buttonNum;
-      selectKnob = true;
-      delay(50);
-      updateButtons();
-      buttonNum = -1;
-    }
-  }
-
-  flashLEDs(4);
   updatePots(); // get initial pot locations (used for setting octave/velocity)
   setNotes(); // set initial note values
 }
 
 void loop() {
   // Ensure device is connected to BLE
-  if (deviceConnected == false) {
+  if (midiBT && (deviceConnected == false)) {
     digitalWrite(led_Blue, HIGH);
     delay(1000);
     digitalWrite(led_Blue, LOW);
@@ -306,16 +235,173 @@ void loop() {
 
     updateButtons(); // Check for button presses
     doMIDI(); // Send any required MIDI messages
+
+    if (average1
+    == 0) { // if velocity is turned all the way down, allow for button combinations to change settings
+      if (button9.pressed() && button10.pressed()) { // press 9 & 10 to select root, scale, and knob function again
+        flashLEDs(3);
+        selectScale = false;
+        selectRoot = false;
+        selectKnob = false;
+        setupMode();
+      }
+      if (button11.pressed() && button12.pressed()) { // press 11 & 12 to select all options
+        flashLEDs(5);
+        selectOutput = false;
+        selectChan = false;
+        selectScale = false;
+        selectRoot = false;
+        selectKnob = false;
+        setupMode();
+      }
+    }
   }
+
+  DIN_MIDI.read();
+}
+
+void setupMode() {
+  int buttonNum = -1; // used to return number of button pressed
+
+  while (selectOutput == false) { // select output mode between BT, TRS, or both
+    digitalWrite(led_Green, HIGH);
+    buttonNum = buttonChoice();
+    switch (buttonNum) {
+      case 0: // output only BT
+        midiBT = true;
+        midiDIN = false;
+        selectOutput = true;
+        selectOutput = true;
+        break;
+      case 1: // output only TRS
+        midiBT = false;
+        midiDIN = true;
+        selectOutput = true;
+        break;
+      case 2: // output both
+        midiBT = true;
+        midiDIN = true;
+        selectOutput = true;
+        break;
+      case 10: // trs output, default other options
+        midiBT = false;
+        midiDIN = true;
+        selectOutput = true;
+        selectChan = true;
+        selectRoot = true;
+        selectScale = true;
+        selectKnob = true;
+        break;
+      case 11: // bt output, default other options
+        midiBT = true;
+        midiDIN = false;
+        selectOutput = true;
+        selectChan = true;
+        selectRoot = true;
+        selectScale = true;
+        selectKnob = true;
+        break;
+    }
+  }
+
+  flashLEDs(1);
+
+  while (selectChan == false) { // select MIDI channel
+    digitalWrite(led_Green, HIGH);
+    buttonNum = buttonChoice();
+    if (buttonNum > -1) {
+      midiChan = buttonNum + 1; // set channel between 1-12 (instead of 0-11)
+      selectChan = true;
+      buttonNum = -1;
+      delay(50);
+      updateButtons();
+    }
+  }
+
+  flashLEDs(2);
+
+  while (selectScale == false) { // select scale
+
+    digitalWrite(led_Green, HIGH);
+    buttonNum = buttonChoice();
+
+    if ((buttonNum > -1) && (buttonNum < 9)) {
+
+      switch (buttonNum) {
+        case 0: // major scale
+          memcpy(noteInterval, scaleMajor, sizeof noteInterval);
+          break;
+        case 1: // natural minor
+          memcpy(noteInterval, scaleNatMinor, sizeof noteInterval);
+          break;
+        case 2: // harmonic minor
+          memcpy(noteInterval, scaleHarMinor, sizeof noteInterval);
+          break;
+        case 3: // no scale
+          memcpy(noteInterval, scaleNone, sizeof noteInterval);
+          break;
+        case 4: // pentatonic major
+          memcpy(noteInterval, scalePentMajor, sizeof noteInterval);
+          break;
+        case 5: // pentatonic minor
+          memcpy(noteInterval, scalePentMinor, sizeof noteInterval);
+          break;
+        case 6: // whole tone
+          memcpy(noteInterval, scaleWholeTone, sizeof noteInterval);
+          break;
+        case 7: // blues
+          memcpy(noteInterval, scaleBlues, sizeof noteInterval);
+          break;
+      }
+      selectScale = true;
+
+      delay(50);
+      updateButtons();
+
+      buttonNum = -1;
+    }
+  }
+
+  flashLEDs(3);
+
+  while (selectRoot == false) { // select root note
+
+    digitalWrite(led_Green, HIGH);
+    buttonNum = buttonChoice();
+    if ((buttonNum > -1) && (buttonNum < 12)) {
+      noteRoot = buttonNum;
+      selectRoot = true;
+      delay(50);
+      updateButtons();
+      buttonNum = -1;
+    }
+  }
+
+  flashLEDs(4);
+
+  while (selectKnob == false) { // select knob function
+
+    digitalWrite(led_Green, HIGH);
+    buttonNum = buttonChoice();
+    if ((buttonNum > -1) && (buttonNum < 4)) {
+      knobFunction = buttonNum;
+      selectKnob = true;
+      delay(50);
+      updateButtons();
+      buttonNum = -1;
+    }
+  }
+
+  flashLEDs(5);
 }
 
 void flashLEDs(int flashes) {
   for (int i = 0; i < flashes; i++) {
     digitalWrite(led_Green, LOW);
     digitalWrite(led_Blue, HIGH);
-    delay(50);
+    delay(25);
     digitalWrite(led_Blue, LOW);
-    delay(100);
+    delay(50);
   }
 }
 
@@ -382,7 +468,7 @@ void potAverage() {
 
     // calculate the average:
     average1 = total / numReadings;
-    delay(1);        // delay in between reads for stability
+    delay(1); // delay in between reads for stability
   }
 }
 
@@ -500,28 +586,37 @@ int buttonChoice() {
 }
 
 void sendNoteOn(int note) {
-  midiPacket[2] = midiChan + 144;
-  midiPacket[3] = note;
-  midiPacket[4] = velocityValue;
-  pCharacteristic->setValue(midiPacket, 5);
-  pCharacteristic->notify();
+  if (midiBT) {
+    midiPacket[2] = midiChan + 144;
+    midiPacket[3] = note;
+    midiPacket[4] = velocityValue;
+    pCharacteristic->setValue(midiPacket, 5);
+    pCharacteristic->notify();
+  }
+  if (midiDIN) DIN_MIDI.sendNoteOn(note, velocityValue, midiChan);
   delay(1);
 }
 
 void sendNoteOff(int note) {
-  midiPacket[2] = midiChan + 128;
-  midiPacket[3] = note;
-  midiPacket[4] = 0;
-  pCharacteristic->setValue(midiPacket, 5);
-  pCharacteristic->notify();
+  if (midiBT) {
+    midiPacket[2] = midiChan + 128;
+    midiPacket[3] = note;
+    midiPacket[4] = 0;
+    pCharacteristic->setValue(midiPacket, 5);
+    pCharacteristic->notify();
+  }
+  if (midiDIN) DIN_MIDI.sendNoteOff(note, 0, midiChan);
   delay(1);
 }
 
 void sendCC(int CC, int value) {
-  midiPacket[2] = midiChan + 176;
-  midiPacket[3] = CC;
-  midiPacket[4] = value;
-  pCharacteristic->setValue(midiPacket, 5);
-  pCharacteristic->notify();
+  if (midiBT) {
+    midiPacket[2] = midiChan + 176;
+    midiPacket[3] = CC;
+    midiPacket[4] = value;
+    pCharacteristic->setValue(midiPacket, 5);
+    pCharacteristic->notify();
+  }
+  if (midiDIN) DIN_MIDI.sendControlChange(CC, value, midiChan);
   delay(1);
 }
