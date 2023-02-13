@@ -4,7 +4,7 @@
 This is a fork of the NMSVE firmware by this.is.Noise.
 
 I have added the following functionality:
-* Selectable scale
+* Selectable scales/modes
 * Selectable root note
 * Selectable knob function
 * Output over BT, TRS MIDI, or both
@@ -28,16 +28,18 @@ Default options are set near the top of the code.
 
 Next the device prompts for the MIDI channel. Buttons 1 through 12 select those channels.
 
-Then the device prompts for the scale:
+Then the device prompts for the scale/mode:
 
-* 1 Major
-* 2	Natural Minor
-* 3	Harmonic Minor
+* 1 Ionian Mode
+* 2	Dorian Mode
+* 3	Phrygian Mode
 * 4	None
-* 5	Pentatonic Major
-* 6	Pentatonic Minor
-* 7	Whole Tone
-* 8	Blues
+* 5	Lydian mode
+* 6	Mixolydian Mode
+* 7	Aeolian Mode
+* 8	Locrian Mode
+* 9 Pentatonic Scale
+* 10 Blues Scale
 
 After the scale is selected you are prompted for the root note, this is chosen using the same note layout as original firmware (starting with C at the top left).
 
