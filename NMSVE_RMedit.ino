@@ -60,7 +60,7 @@ int knobFunction = 0;  // change knob function: 0 = velocity, 1 = modulation, 2 
 int midiChan = 1;  // MIDI channel to send data on
 int noteRoot = 0;  // default middle C root note
 
-int noteInterval[11] = { 2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2 };  // number of semitones each note is apart, default is major
+int noteInterval[11] = { 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2 };  // number of semitones each note is apart, default is major
 int modeIonian[11] = { 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2 };
 int modeDorian[11] = { 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2 };
 int modePhrygian[11] = { 1, 2, 2, 2, 1, 2, 2, 2, 2, 1, 2 };
@@ -327,34 +327,34 @@ void setupMode() {
     if ((buttonNum > -1) && (buttonNum < 9)) {
 
       switch (buttonNum) {
-        case 0:  // major scale
+        case 0: 
           memcpy(noteInterval, modeIonian, sizeof noteInterval);
           break;
-        case 1:  // natural minor
+        case 1:
           memcpy(noteInterval, modeDorian, sizeof noteInterval);
           break;
-        case 2:  // harmonic minor
+        case 2:
           memcpy(noteInterval, modePhrygian, sizeof noteInterval);
           break;
-        case 3:  // no scale
+        case 3:
           memcpy(noteInterval, scaleNone, sizeof noteInterval);
           break;
-        case 4:  // pentatonic major
+        case 4:
           memcpy(noteInterval, modeLydian, sizeof noteInterval);
           break;
-        case 5:  // pentatonic minor
+        case 5:
           memcpy(noteInterval, modeMixolydian, sizeof noteInterval);
           break;
-        case 6:  // whole tone
+        case 6:
           memcpy(noteInterval, modeAeolian, sizeof noteInterval);
           break;
-        case 7:  // blues
+        case 7:
           memcpy(noteInterval, modeLocrian, sizeof noteInterval);
           break;
-        case 8:  // pentatonic major scale
+        case 8:
           memcpy(noteInterval, scalePentatonic, sizeof noteInterval);
           break;
-        case 9:  // blues scale
+        case 9:
           memcpy(noteInterval, scaleBlues, sizeof noteInterval);
           break;
       }
