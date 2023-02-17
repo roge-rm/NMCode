@@ -7,7 +7,7 @@ I have added the following functionality:
 * Selectable scales/modes
 * Selectable root note
 * Selectable knob function
-* Output over BT, TRS MIDI, or both
+* Output over TRS MIDI, BT (Bluetooth Low Energy), or both
 
 <img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/02.jpg" width="400">
 
@@ -38,7 +38,7 @@ Then the device prompts for the scale/mode:
 * 6	Mixolydian Mode
 * 7	Aeolian Mode
 * 8	Locrian Mode
-* 9 Pentatonic Scale
+* 9 Pentatonic Major Scale
 * 10 Blues Scale
 
 After the scale is selected you are prompted for the root note, this is chosen using the same note layout as original firmware (starting with C at the top left).
@@ -50,9 +50,7 @@ Finally you choose the function of the rotary knob:
 * 3 Pan CC
 * 4 Expression CC
 
-Once booted the buttons are reassigned to whatever scale you chose, starting from the top left, with the root note of choice. The rotary knob will function as set above and the fader will choose the octave, as before. At any time the selection menu can be return to by turning the rotary knob all the way to the left and then pressing buttons 9+10 or 11+12 together.
-
-This is getting to the point where I can't add anything else without making it too hard to remember what is going on. I am considering some kind of chord mode but I am not sure yet how I would implement it (or if I want to) so that may be a task for the future.
+Once booted the buttons are reassigned to whatever scale you chose, starting from the top left, with the root note of choice. The rotary knob will function as set above and the fader will choose the octave, as before. At any time the selection menu can be returned to by turning the rotary knob all the way to the left and then pressing buttons 9+10 or 11+12 together. This will allow you to reselect the scale/mode, root node, and rotary knob functions without restarting the device completely.
 
 Cheers, thanks for reading.
 rm.
