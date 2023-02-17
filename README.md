@@ -17,8 +17,8 @@ To support TRS MIDI output I have modified the original case (<a href=https://ww
 
 On startup, the device prompts for the output mode. 
 
-* 1 BT Only
-* 2 TRS Only
+* 1 TRS Only
+* 2 BT Only
 * 3 BT + TRS
 * 11 TRS Only, Default all other options
 * 12 BT Only, Default all other options
