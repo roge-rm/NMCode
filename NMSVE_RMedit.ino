@@ -32,6 +32,11 @@
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial, DIN_MIDI);
 
+// Set defaults
+
+#define DefaultRoot 0             // default root note
+#define DefaultMode modePhrygian  // default mode/scale
+
 // Pin assignments
 
 int faderPin = 36;   // Slider
@@ -57,20 +62,20 @@ int velocityValue = 100;  // MIDI velocity value
 
 int knobFunction = 0;  // change knob function: 0 = velocity, 1 = modulation, 2 = pan, 3 = expression
 
-int midiChan = 1;  // MIDI channel to send data on
-int noteRoot = 0;  // default middle C root note
+int midiChan = 1;            // MIDI channel to send data on
+int noteRoot = DefaultRoot;  // default middle C root note
 
-int noteInterval[11] = { 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2 };  // number of semitones each note is apart, default is major
-int modeIonian[11] = { 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2 };
-int modeDorian[11] = { 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2 };
-int modePhrygian[11] = { 1, 2, 2, 2, 1, 2, 2, 2, 2, 1, 2 };
+int noteInterval[11];  // number of semitones each note is apart, default set above
+int modeIonian[11] = { 2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2 };
+int modeDorian[11] = { 2, 1, 2, 2, 2, 1, 2, 2, 1, 2, 2 };
+int modePhrygian[11] = { 1, 2, 2, 2, 1, 2, 2, 1, 2, 2, 2 };
 int scaleNone[11] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-int modeLydian[11] = { 2, 2, 2, 1, 2, 2, 2, 2, 1, 2, 2 };
-int modeMixolydian[11] = { 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2 };
-int modeAeolian[11] = { 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1 };
-int modeLocrian[11] = { 1, 2, 2, 2, 1, 2, 2, 2, 2, 1, 2 };
+int modeLydian[11] = { 2, 2, 2, 1, 2, 2, 1, 2, 2, 2, 1 };
+int modeMixolydian[11] = { 2, 2, 1, 2, 2, 1, 2, 2, 2, 1, 2 };
+int modeAeolian[11] = { 2, 1, 2, 2, 1, 2, 2, 2, 1, 2, 2 };
+int modeLocrian[11] = { 1, 2, 2, 1, 2, 2, 2, 1, 2, 2, 1 };
 int scalePentatonic[11] = { 2, 2, 3, 2, 3, 2, 2, 3, 2, 3, 2 };
-int scaleBlues[11] = { 3, 2, 1, 1, 3, 2, 2, 3, 2, 1, 1 };
+int scaleBlues[11] = { 3, 2, 1, 1, 3, 2, 3, 2, 1, 1, 3 };
 
 int buttonNotes[12];   // currently assigned button note
 int buttonPlayed[12];  // what note was played by each button last (in case the page of notes is changed while a note is being played; to prevent hung notes)
@@ -121,6 +126,8 @@ Bounce2::Button button12 = Bounce2::Button();
 
 
 void setup() {
+  memcpy(noteInterval, DefaultMode, sizeof noteInterval);
+
   // Button setup
   button1.attach(buttonPins[0], INPUT);
   button2.attach(buttonPins[1], INPUT);
@@ -218,7 +225,7 @@ void loop() {
 
   // Enter Default Mode
   else {
-    digitalWrite(led_Blue, HIGH);
+    if (midiBT) digitalWrite(led_Blue, HIGH);
     updatePots();  // Check for changes to pot/fader
 
     if (stateChange) {  // Change octave if needed
@@ -266,15 +273,15 @@ void setupMode() {
     digitalWrite(led_Green, HIGH);
     buttonNum = buttonChoice();
     switch (buttonNum) {
-      case 0:  // output only BT
+      case 0:  // output only TRS
+        midiBT = false;
+        midiDIN = true;
+        selectOutput = true;
+        break;
+      case 1:  // output only BT
         midiBT = true;
         midiDIN = false;
         selectOutput = true;
-        selectOutput = true;
-        break;
-      case 1:  // output only TRS
-        midiBT = false;
-        midiDIN = true;
         selectOutput = true;
         break;
       case 2:  // output both
@@ -324,10 +331,10 @@ void setupMode() {
     digitalWrite(led_Green, HIGH);
     buttonNum = buttonChoice();
 
-    if ((buttonNum > -1) && (buttonNum < 9)) {
+    if ((buttonNum > -1) && (buttonNum < 10)) {
 
       switch (buttonNum) {
-        case 0: 
+        case 0:
           memcpy(noteInterval, modeIonian, sizeof noteInterval);
           break;
         case 1:
@@ -404,9 +411,9 @@ void flashLEDs(int flashes) {
   for (int i = 0; i < flashes; i++) {
     digitalWrite(led_Green, LOW);
     digitalWrite(led_Blue, HIGH);
-    delay(25);
+    delay(100);
     digitalWrite(led_Blue, LOW);
-    delay(50);
+    delay(40);
   }
 }
 
