@@ -4,7 +4,7 @@
 This is a fork of the NMSVE firmware by this.is.Noise.
 
 I have added the following functionality:
-* Selectable scales/modes
+* Selectable modes/scales
 * Selectable root note
 * Selectable knob function
 * Output over TRS MIDI, BT (Bluetooth Low Energy), or both
@@ -13,9 +13,12 @@ I have added the following functionality:
 
 To support TRS MIDI output I have modified the original case (<a href=https://www.thingiverse.com/thing:5356460>thingiverse</a>) by making it 5mm thicker and hollowing out an area to fit the TRS jack and resistors. In this case the TRS jack is wired for TRS-A connections. Ground goes to ground on the NMSVE, the sleeve is wired through a 33 Ohm resistor to the 3.3V pin and the tip is wired through a 10 Ohm resistor to the TX pin. 
 
+If you want to use this firmware without doing the hardware modification simply set **#define ENABLE_TRS** to *false* instead of *true*. 
+This will exclude any code related to sending data via TRS and will also skip the first selection step below (the device will boot staight to MIDI channel selection).
+
 <img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/03.jpg" width="400">
 
-On startup, the device prompts for the output mode. 
+#### On startup, the device prompts for the output mode.
 
 * 1 TRS Only
 * 2 BT Only
@@ -26,24 +29,26 @@ On startup, the device prompts for the output mode.
 The last two options are so that I can quickly skip through all settings and use the NMSVE right away. 
 Default options are set near the top of the code.
 
-Next the device prompts for the MIDI channel. Buttons 1 through 12 select those channels.
+#### Next the device prompts for the MIDI channel. Buttons 1 through 12 select those channels.
 
-Then the device prompts for the scale/mode:
+#### Then the device prompts for the scale/mode:
 
 * 1 Ionian Mode
 * 2	Dorian Mode
 * 3	Phrygian Mode
 * 4	None
-* 5	Lydian mode
+* 5	Lydian Mode
 * 6	Mixolydian Mode
 * 7	Aeolian Mode
 * 8	Locrian Mode
 * 9 Pentatonic Major Scale
-* 10 Blues Scale
+* 10 Penatonic Minor Scale
+* 11 Blues Scale
+* 12 Whole Tone Scale
 
-After the scale is selected you are prompted for the root note, this is chosen using the same note layout as original firmware (starting with C at the top left).
+#### After the mode is selected you are prompted for the root note, this is chosen using the same note layout as original firmware (starting with C at the top left).
 
-Finally you choose the function of the rotary knob:
+#### Finally you choose the function of the rotary knob:
 
 * 1 Velocity (sent with note data)
 * 2 Modulation CC (this is the current functionality in the stock firmware)
