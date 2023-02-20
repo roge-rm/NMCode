@@ -37,7 +37,7 @@ Default options are set near the top of the code.
 * 1 Ionian Mode
 * 2	Dorian Mode
 * 3	Phrygian Mode
-* 4	None
+* 4	None (Chromatic)
 * 5	Lydian Mode
 * 6	Mixolydian Mode
 * 7	Aeolian Mode
