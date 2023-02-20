@@ -1,7 +1,7 @@
 # NMSVE.rm
 <img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/01.jpg" width="700">
 
-This is a fork of the NMSVE firmware by this.is.Noise.
+This is a fork of the NMSVE firmware by <a href=https://thisisnoiseinc.com/en-ca>this.is.Noise</a>
 
 I have added the following functionality:
 * Selectable modes/scales
@@ -18,7 +18,8 @@ This will exclude any code related to sending data via TRS and will also skip th
 
 <img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/03.jpg" width="400">
 
-#### On startup, the device prompts for the output mode.
+### Usage
+**On startup, the device prompts for the output mode.**
 
 * 1 TRS Only
 * 2 BT Only
@@ -29,9 +30,9 @@ This will exclude any code related to sending data via TRS and will also skip th
 The last two options are so that I can quickly skip through all settings and use the NMSVE right away. 
 Default options are set near the top of the code.
 
-#### Next the device prompts for the MIDI channel. Buttons 1 through 12 select those channels.
+**Next the device prompts for the MIDI channel. Buttons 1 through 12 select those channels.**
 
-#### Then the device prompts for the scale/mode:
+**Then the device prompts for the scale/mode:**
 
 * 1 Ionian Mode
 * 2	Dorian Mode
@@ -46,9 +47,9 @@ Default options are set near the top of the code.
 * 11 Blues Scale
 * 12 Whole Tone Scale
 
-#### After the mode is selected you are prompted for the root note, this is chosen using the same note layout as original firmware (starting with C at the top left).
+**After the mode is selected you are prompted for the root note, this is chosen using the same note layout as original firmware (starting with C at the top left).**
 
-#### Finally you choose the function of the rotary knob:
+**Finally you choose the function of the rotary knob:**
 
 * 1 Velocity (sent with note data)
 * 2 Modulation CC (this is the current functionality in the stock firmware)
@@ -58,5 +59,20 @@ Default options are set near the top of the code.
 Once booted the buttons are reassigned to whatever scale you chose, starting from the top left, with the root note of choice. The rotary knob will function as set above and the fader will choose the octave, as before. At any time the selection menu can be returned to by turning the rotary knob all the way to the left and then pressing buttons 9+10 or 11+12 together. This will allow you to reselect the scale/mode, root node, and rotary knob functions without restarting the device completely.
 
 Cheers, thanks for reading.
-rm.
+<br>rm.
+
+### Flashing Instructions
+1. Download Arduino
+2. Install ESP32 in Arduino
+3. Load sketch, install required library (Bounce2)
+4. Select board Firebeetle-ESP32
+5. Plug in USB to serial FTDI adapter, select port in Arduino
+6. Connect adapter to NMSVE - see <a href=https://github.com/roge-rm/NMCode/blob/main/images/pinout.png>pinout</a>
+- Black/GND to GND on NMSVE
+- Green/TX to RX on NMSVE
+- White/RX to TX on NMSVE
+7. Turn on NMSVE while holding boot pin to ground wire - POWER and CONNECT LEDs should be solid
+8. Flash in Arduino
+
+
 
