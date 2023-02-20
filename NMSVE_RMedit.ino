@@ -11,10 +11,12 @@
     Based on BLE_notify example by Evandro Copercini."
 
     -----
-    RM.edit by rm, for my own Sunvox-related purposes.
-    This software 7 different scales (or no scale) as well as choosing the root note of your choice.
-    See https://github.com/hunked/NMCode for more information.
+    RM.edit by rm
+    This software adds selectable modes/scales as well as a chooseable root note.
+    See https://github.com/roge-rm/NMCode for more information.
 */
+
+#define ENABLE_TRS true  // set to false to use without hardware modification
 
 #include <BLEDevice.h>
 #include <BLEUtils.h>
@@ -23,14 +25,15 @@
 #define SERVICE_UUID "03b80e5a-ede8-4b33-a751-6ce34ec4c700"
 #define CHARACTERISTIC_UUID "7772e5db-3868-4112-a1a9-f2669d106bf3"
 
-// Include the Bounce2 library found here :
-// https://github.com/thomasfredericks/Bounce2
+// Include the Bounce2 library (https://github.com/thomasfredericks/Bounce2)
 #define BOUNCE_WITH_PROMPT_DETECTION
 #include <Bounce2.h>
 
 #include <MIDI.h>
 
+#if ENABLE_TRS
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial, DIN_MIDI);
+#endif
 
 // Set defaults
 
@@ -74,13 +77,15 @@ int modeLydian[11] = { 2, 2, 2, 1, 2, 2, 1, 2, 2, 2, 1 };
 int modeMixolydian[11] = { 2, 2, 1, 2, 2, 1, 2, 2, 2, 1, 2 };
 int modeAeolian[11] = { 2, 1, 2, 2, 1, 2, 2, 2, 1, 2, 2 };
 int modeLocrian[11] = { 1, 2, 2, 1, 2, 2, 2, 1, 2, 2, 1 };
-int scalePentatonic[11] = { 2, 2, 3, 2, 3, 2, 2, 3, 2, 3, 2 };
+int scaleMajorPentatonic[11] = { 2, 2, 3, 2, 3, 2, 2, 3, 2, 3, 2 };
+int scaleMinorPentatonic[11] = { 3, 2, 2, 3, 2, 3, 2, 2, 3, 2, 3 };
 int scaleBlues[11] = { 3, 2, 1, 1, 3, 2, 3, 2, 1, 1, 3 };
+int scaleWholeTone[11] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 };
 
 int buttonNotes[12];   // currently assigned button note
 int buttonPlayed[12];  // what note was played by each button last (in case the page of notes is changed while a note is being played; to prevent hung notes)
 
-// Fader/rotary variables
+// fader/rotary variables
 int faderValue = 4;
 
 const int numReadings = 15;
@@ -176,9 +181,11 @@ void setup() {
 
   setupMode();  // run selection for output, channel, root note, scale
 
+#if ENABLE_TRS
   if (midiDIN) {
     DIN_MIDI.begin(MIDI_CHANNEL_OMNI);
   }
+#endif
 
   if (midiBT) {
     BLEDevice::init("NMSVE.rm");
@@ -263,12 +270,19 @@ void loop() {
     }
   }
 
+#if ENABLE_TRS
   if (midiDIN) DIN_MIDI.read();
+#endif
 }
 
 void setupMode() {
   int buttonNum = -1;  // used to return number of button pressed
 
+  flashLEDs(1);
+  delay(100);
+  flashLEDs(1);
+
+#if (ENABLE_TRS)
   while (selectOutput == false) {  // select output mode between BT, TRS, or both
     digitalWrite(led_Green, HIGH);
     buttonNum = buttonChoice();
@@ -309,8 +323,11 @@ void setupMode() {
         break;
     }
   }
+#elif (!ENABLE_TRS)
+  selectOutput = true;
+#endif
 
-  flashLEDs(1);
+  if (!selectKnob) flashLEDs(2);
 
   while (selectChan == false) {  // select MIDI channel
     digitalWrite(led_Green, HIGH);
@@ -324,14 +341,14 @@ void setupMode() {
     }
   }
 
-  flashLEDs(2);
+  if (!selectKnob) flashLEDs(3);
 
   while (selectScale == false) {  // select scale
 
     digitalWrite(led_Green, HIGH);
     buttonNum = buttonChoice();
 
-    if ((buttonNum > -1) && (buttonNum < 10)) {
+    if ((buttonNum > -1) && (buttonNum < 12)) {
 
       switch (buttonNum) {
         case 0:
@@ -359,10 +376,16 @@ void setupMode() {
           memcpy(noteInterval, modeLocrian, sizeof noteInterval);
           break;
         case 8:
-          memcpy(noteInterval, scalePentatonic, sizeof noteInterval);
+          memcpy(noteInterval, scaleMajorPentatonic, sizeof noteInterval);
           break;
         case 9:
+          memcpy(noteInterval, scaleMinorPentatonic, sizeof noteInterval);
+          break;
+        case 10:
           memcpy(noteInterval, scaleBlues, sizeof noteInterval);
+          break;
+        case 11:
+          memcpy(noteInterval, scaleWholeTone, sizeof noteInterval);
           break;
       }
       selectScale = true;
@@ -374,7 +397,7 @@ void setupMode() {
     }
   }
 
-  flashLEDs(3);
+  if (!selectKnob) flashLEDs(4);
 
   while (selectRoot == false) {  // select root note
 
@@ -389,7 +412,7 @@ void setupMode() {
     }
   }
 
-  flashLEDs(4);
+  if (!selectKnob) flashLEDs(5);
 
   while (selectKnob == false) {  // select knob function
 
@@ -404,16 +427,18 @@ void setupMode() {
     }
   }
 
-  flashLEDs(5);
+  flashLEDs(2);
+  delay(50);
+  flashLEDs(2);
 }
 
 void flashLEDs(int flashes) {
   for (int i = 0; i < flashes; i++) {
     digitalWrite(led_Green, LOW);
     digitalWrite(led_Blue, HIGH);
-    delay(100);
+    delay(75);
     digitalWrite(led_Blue, LOW);
-    delay(40);
+    delay(30);
   }
 }
 
@@ -605,7 +630,9 @@ void sendNoteOn(int note) {
     pCharacteristic->setValue(midiPacket, 5);
     pCharacteristic->notify();
   }
+#if ENABLE_TRS
   if (midiDIN) DIN_MIDI.sendNoteOn(note, velocityValue, midiChan);
+#endif
   delay(1);
 }
 
@@ -617,7 +644,10 @@ void sendNoteOff(int note) {
     pCharacteristic->setValue(midiPacket, 5);
     pCharacteristic->notify();
   }
+
+#if ENABLE_TRS
   if (midiDIN) DIN_MIDI.sendNoteOff(note, 0, midiChan);
+#endif
   delay(1);
 }
 
@@ -629,6 +659,8 @@ void sendCC(int CC, int value) {
     pCharacteristic->setValue(midiPacket, 5);
     pCharacteristic->notify();
   }
+#if ENABLE_TRS
   if (midiDIN) DIN_MIDI.sendControlChange(CC, value, midiChan);
+#endif
   delay(1);
 }
