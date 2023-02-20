@@ -19,7 +19,7 @@ This will exclude any code related to sending data via TRS and will also skip th
 <img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/03.jpg" width="400">
 
 ### Usage
-**On startup, the device prompts for the output mode.**
+**1. On startup, the device prompts for the output mode.**
 
 * 1 TRS Only
 * 2 BT Only
@@ -30,9 +30,9 @@ This will exclude any code related to sending data via TRS and will also skip th
 The last two options are so that I can quickly skip through all settings and use the NMSVE right away. 
 Default options are set near the top of the code.
 
-**Next the device prompts for the MIDI channel. Buttons 1 through 12 select those channels.**
+**2. Next the device prompts for the MIDI channel. Buttons 1 through 12 select those channels.**
 
-**Then the device prompts for the scale/mode:**
+**3. Then the device prompts for the scale/mode:**
 
 * 1 Ionian Mode
 * 2	Dorian Mode
@@ -47,9 +47,9 @@ Default options are set near the top of the code.
 * 11 Blues Scale
 * 12 Whole Tone Scale
 
-**After the mode is selected you are prompted for the root note, this is chosen using the same note layout as original firmware (starting with C at the top left).**
+**4. After the mode is selected you are prompted for the root note. This is chosen using the same note layout as original firmware (starting with C at the top left).**
 
-**Finally you choose the function of the rotary knob:**
+**5. Finally you choose the function of the rotary knob:**
 
 * 1 Velocity (sent with note data)
 * 2 Modulation CC (this is the current functionality in the stock firmware)
