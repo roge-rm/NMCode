@@ -64,7 +64,7 @@ Cheers, thanks for reading.
 ### Flashing Instructions
 1. Download <a href=https://www.arduino.cc/en/software>Arduino</a>
 2. <a href=https://randomnerdtutorials.com/installing-the-esp32-board-in-arduino-ide-windows-instructions/>Install ESP32</a> in Arduino
-3. Load sketch, install required library (Bounce2)
+3. Load sketch, install required libraries (MIDI, Bounce2)
 4. Select board Firebeetle-ESP32
 5. Plug in USB to serial FTDI adapter, select port in Arduino
 6. Connect adapter to NMSVE - see <a href=https://github.com/roge-rm/NMCode/blob/main/images/pinout.png>pinout</a>
