@@ -19,10 +19,10 @@ This will exclude any code related to sending data via TRS and will also skip th
 <img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/03.jpg" width="400">
 
 ### Usage
-#### On startup, the device prompts you to select from one of the eight presets or to run a full setup. Presets can be saved from any combination of configurations using the full setup.
+**On startup, the device prompts you to select from one of the eight presets or to run a full setup. Presets can be saved from any combination of configurations using the full setup.**
 
 * Buttons 1-8 select a preset
-* Button 12 runs full setup.
+* Button 12 runs full setup
 
 If presets have not been set up they will be launched with the default settings (configured near the top of the code). Once adjusted they can be saved (see below).
 
@@ -31,11 +31,6 @@ If presets have not been set up they will be launched with the default settings 
 * 1 TRS Only
 * 2 BT Only
 * 3 BT + TRS
-* 11 TRS Only, Default all other options
-* 12 BT Only, Default all other options
-
-The last two options are so that I can quickly skip through all settings and use the NMSVE right away. 
-Default options are set near the top of the code.
 
 **2. Next the device prompts for the MIDI channel. Buttons 1 through 12 select those channels.**
 
@@ -65,7 +60,7 @@ Default options are set near the top of the code.
 
 Once booted the buttons are reassigned to whatever scale you chose, starting from the top left, with the root note of choice. The rotary knob will function as set above and the fader will choose the octave, as before.
 
-If you would like to change settings without restarting the device, turn the knob and slide the fader all the way to the left. Then you can press the following buttons to change settings or save/load presets:
+If you would like to change settings without restarting the device, turn the knob to zero (counter clockwise) and slide the fader all the way to the left. Then you can press the following buttons to change settings or save/load presets:
 
 * 1 Select MIDI channel
 * 2 Select scale
