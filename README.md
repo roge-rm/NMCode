@@ -19,7 +19,14 @@ This will exclude any code related to sending data via TRS and will also skip th
 <img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/03.jpg" width="400">
 
 ### Usage
-**1. On startup, the device prompts for the output mode.**
+#### On startup, the device prompts you to select from one of the eight presets or to run a full setup. Presets can be saved from any combination of configurations using the full setup.
+
+* Buttons 1-8 select a preset
+* Button 12 runs full setup.
+
+If presets have not been set up they will be launched with the default settings (configured near the top of the code). Once adjusted they can be saved (see below).
+
+**1. If you select the full setup, you will first be prompted to select the output options:**
 
 * 1 TRS Only
 * 2 BT Only
@@ -56,9 +63,21 @@ Default options are set near the top of the code.
 * 3 Pan CC
 * 4 Expression CC
 
-Once booted the buttons are reassigned to whatever scale you chose, starting from the top left, with the root note of choice. The rotary knob will function as set above and the fader will choose the octave, as before. At any time the selection menu can be returned to by turning the rotary knob all the way to the left and then pressing buttons 9+10 or 11+12 together. This will allow you to reselect the scale/mode, root node, and rotary knob functions without restarting the device completely.
+Once booted the buttons are reassigned to whatever scale you chose, starting from the top left, with the root note of choice. The rotary knob will function as set above and the fader will choose the octave, as before.
 
-Cheers, thanks for reading.
+If you would like to change settings without restarting the device, turn the knob and slide the fader all the way to the left. Then you can press the following buttons to change settings or save/load presets:
+
+* 1 Select MIDI channel
+* 2 Select scale
+* 3 Select root note
+* 4 Select knob function
+* 5 Run full setup
+* 9 Load preset
+* 12 Save preset
+
+Pressing 9 or 12 will prompt you to choose the slot to load/save preset. Press buttons 1 through 8 to select the required slot and your preset will be loaded or saved!
+
+Cheers, I hope you enjoy.
 <br>rm.
 
 ### Flashing Instructions
