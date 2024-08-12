@@ -1,20 +1,17 @@
 /*
    NMCode by this.is.NOISE inc.
-
-   https://github.com/thisisnoiseinc/NMCode
+    https://github.com/thisisnoiseinc/NMCode
 
    Built upon:
-
     "BLE_MIDI Example by neilbags
     https://github.com/neilbags/arduino-esp32-BLE-MIDI
-
     Based on BLE_notify example by Evandro Copercini."
 
-    -----
-    RM.edit by rm
-    This software adds selectable modes/scales as well as a chooseable root note.
-    See https://github.com/roge-rm/NMCode for more information.
+   RM.edit by rm
+    https://github.com/roge-rm/NMCode
 */
+
+#define FIRMWARE_VERSION 20240811
 
 #define ENABLE_TRS true  // set to false to use without hardware modification
 
@@ -25,50 +22,45 @@
 #define SERVICE_UUID "03b80e5a-ede8-4b33-a751-6ce34ec4c700"
 #define CHARACTERISTIC_UUID "7772e5db-3868-4112-a1a9-f2669d106bf3"
 
-// Include the Bounce2 library (https://github.com/thomasfredericks/Bounce2)
 #define BOUNCE_WITH_PROMPT_DETECTION
-#include <Bounce2.h>
-
+#include <Bounce2.h>  // https://github.com/thomasfredericks/Bounce2
 #include <MIDI.h>
+
+#include <EEPROM.h>  // save and restore presets
 
 #if ENABLE_TRS
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial, DIN_MIDI);
 #endif
 
-// Set defaults
+// set defaults
+#define DEFAULTINPUT 2  // default input method (0 = TRS only, 1 = BT only, 2 = both)
+#define DEFAULTROOT 0   // default root note
+#define DEFAULTSCALE 0  // default scale (same as below)
+#define DEFAULTCHAN 9   // default MIDI channel
+#define DEFAULTKNOB 0   // default knob function
+#define baseEEPROM 100  // start address for EEPROM values
 
-#define DefaultRoot 0             // default root note
-#define DefaultMode modePhrygian  // default mode/scale
-
-// Pin assignments
-
-int faderPin = 36;   // Slider
-int rotaryPin = 39;  // Rotary Knob
-int led_Blue = 14;   // BLE LED
-int led_Green = 4;   // CHANNEL LED
+// pin assignments
+int faderPin = 36;   // slider
+int rotaryPin = 39;  // rotary Knob
+int led_Blue = 14;
+int led_Green = 4;
 int buttonPins[12] = { 16, 17, 18, 21, 19, 25, 22, 23, 27, 26, 35, 34 };
 
-// Bool operators
+// bool operators
+bool deviceConnected = false;  // track whether bluetooth device is connected
+bool stateChange = false;      // flag set to run note reassignment
 
-bool deviceConnected = false;
-bool selectOutput = false;  // choose between both BT & TRS, only BT, only TRS
-bool selectChan = false;    // select MIDI channel
-bool selectScale = false;   // run loop to select mode/scale
-bool selectRoot = false;    // run loop to select root note
-bool selectKnob = false;    // run loop to select knob function
-bool stateChange = false;   // flag set to run note reassignment
+// state variables
+int valInput = DEFAULTINPUT;
+int midiChan = DEFAULTCHAN;
+int valScale = DEFAULTSCALE;
+int valRoot = DEFAULTROOT;
+int knobFunction = DEFAULTKNOB;  // change knob function: 0 = velocity, 1 = modulation, 2 = pan, 3 = expression
+int velocityValue = 100;         // MIDI velocity value
 
-bool midiDIN = true;
-bool midiBT = true;
-
-int velocityValue = 100;  // MIDI velocity value
-
-int knobFunction = 0;  // change knob function: 0 = velocity, 1 = modulation, 2 = pan, 3 = expression
-
-int midiChan = 1;            // MIDI channel to send data on
-int noteRoot = DefaultRoot;  // default middle C root note
-
-int noteInterval[11];  // number of semitones each note is apart, default set above
+// scale interval definitions (semitones between steps)
+int noteInterval[11];
 int modeIonian[11] = { 2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2 };
 int modeDorian[11] = { 2, 1, 2, 2, 2, 1, 2, 2, 1, 2, 2 };
 int modePhrygian[11] = { 1, 2, 2, 2, 1, 2, 2, 1, 2, 2, 2 };
@@ -85,9 +77,13 @@ int scaleWholeTone[11] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 };
 int buttonNotes[12];   // currently assigned button note
 int buttonPlayed[12];  // what note was played by each button last (in case the page of notes is changed while a note is being played; to prevent hung notes)
 
+// timer variables
+unsigned long ledTimer = 0;
+const int ledTime = 1000;  // LED cycle time in ms
+bool ledState = false;
+
 // fader/rotary variables
 int faderValue = 4;
-
 const int numReadings = 15;
 int readings[numReadings];  // the readings from the analog input
 int readIndex = 0;          // the index of the current reading
@@ -131,9 +127,9 @@ Bounce2::Button button12 = Bounce2::Button();
 
 
 void setup() {
-  memcpy(noteInterval, DefaultMode, sizeof noteInterval);
+  EEPROM.begin(512);  // initiate ESP32 pseudo-EEPROM
 
-  // Button setup
+  // button setup
   button1.attach(buttonPins[0], INPUT);
   button2.attach(buttonPins[1], INPUT);
   button3.attach(buttonPins[2], INPUT);
@@ -147,7 +143,7 @@ void setup() {
   button11.attach(buttonPins[10], INPUT);
   button12.attach(buttonPins[11], INPUT);
 
-  // Button debounce interval in ms
+  // button debounce interval in ms
   button1.interval(5);
   button2.interval(5);
   button3.interval(5);
@@ -171,23 +167,24 @@ void setup() {
     readings[thisReading] = 0;
   }
 
-  updateButtons();
-
-  // Set up LED pins
+  // set up LED pins
   pinMode(led_Blue, OUTPUT);
   pinMode(led_Green, OUTPUT);
 
   delay(100);
+  flashLEDs(1);
 
-  setupMode();  // run selection for output, channel, root note, scale
+  updateButtons();
+
+  selectPreset();  // choose one of the available presets or initiate setup mode
 
 #if ENABLE_TRS
-  if (midiDIN) {
+  if ((valInput == 0) || (valInput == 2)) {
     DIN_MIDI.begin(MIDI_CHANNEL_OMNI);
   }
 #endif
 
-  if (midiBT) {
+  if ((valInput == 1) || (valInput == 2)) {
     BLEDevice::init("NMSVE.rm");
 
     // Create the BLE Server
@@ -219,23 +216,257 @@ void setup() {
 
   updatePots();  // get initial pot locations (used for setting octave/velocity)
   setNotes();    // set initial note values
+
+  ledTimer = millis();
+}
+
+void selectPreset() {
+  ledTimer = millis();
+  int buttonNum = -1;
+  bool select = false;
+  delay(50);
+  flashLEDs(2);
+
+  while (select == false) {
+    if (!(ledState) && (millis() > (ledTimer + 1500))) {
+      digitalWrite(led_Green, HIGH);
+      ledTimer = millis();
+      ledState = true;
+    } else if ((ledState) && (millis() > (ledTimer + 1500))) {
+      digitalWrite(led_Green, LOW);
+      ledTimer = millis();
+      ledState = false;
+    }
+    buttonNum = buttonChoice();
+    switch (buttonNum) {
+      case 0 ... 7:  // select between presets 0 through 7
+        recallEEPROM(buttonNum);
+        flashLEDs(buttonNum + 1);
+        select = true;
+        break;
+      case 11:  // initiate full setup
+        flashLEDs(buttonNum + 1);
+        setupMode();  // run selection for output, channel, root note, scale
+        select = true;
+        break;
+    }
+  }
+
+  digitalWrite(led_Blue, LOW);
+}
+
+void setupMode() {
+  setupInput();
+  setupMIDI();
+  setupScale(false);
+  setupRoot();
+  setupKnob();
+  delay(50);
+  flashLEDs(3);
+}
+
+void setupInput() {
+  ledTimer = millis();
+  updateButtons();
+
+#if (ENABLE_TRS)
+  flashLEDs(1);
+
+  int buttonNum;
+  bool select = false;
+  while (select == false) {  // select output mode between TRS only, BT only, or both
+    if (!(ledState) && (millis() > (ledTimer + 1200))) {
+      digitalWrite(led_Green, HIGH);
+      ledTimer = millis();
+      ledState = true;
+    } else if ((ledState) && (millis() > (ledTimer + 1200))) {
+      digitalWrite(led_Green, LOW);
+      ledTimer = millis();
+      ledState = false;
+    }
+    buttonNum = buttonChoice();
+    switch (buttonNum) {
+      case 0:  // output only TRS
+        valInput = 0;
+        select = true;
+        break;
+      case 1:  // output only BT
+        valInput = 1;
+        select = true;
+        break;
+      case 2:  // output both
+        valInput = 2;
+        select = true;
+        break;
+    }
+  }
+#elif (!ENABLE_TRS)
+  valInput = 1;
+#endif
+}
+
+void setupMIDI() {
+  ledTimer = millis();
+  updateButtons();
+  flashLEDs(2);
+  int buttonNum;
+  bool select = false;
+  while (select == false) {  // select MIDI channel
+    if (!(ledState) && (millis() > (ledTimer + 1000))) {
+      digitalWrite(led_Green, HIGH);
+      ledTimer = millis();
+      ledState = true;
+    } else if ((ledState) && (millis() > (ledTimer + 1000))) {
+      digitalWrite(led_Green, LOW);
+      ledTimer = millis();
+      ledState = false;
+    }
+    buttonNum = buttonChoice();
+    if (buttonNum > -1) {
+      midiChan = buttonNum;  // set channel between 1-12 (instead of 0-11)
+      select = true;
+    }
+  }
+}
+
+void setupScale(bool skipsetup) {  // bool input to skip selection and assign scale
+  ledTimer = millis();
+  updateButtons();
+  int buttonNum;
+  bool select = false;
+  if (skipsetup == false) flashLEDs(3);  // only flash when not loading a preset
+  if (skipsetup == true) select = true;
+  while (select == false) {  // select scale
+    if (!(ledState) && (millis() > (ledTimer + 800))) {
+      digitalWrite(led_Green, HIGH);
+      ledTimer = millis();
+      ledState = true;
+    } else if ((ledState) && (millis() > (ledTimer + 800))) {
+      digitalWrite(led_Green, LOW);
+      ledTimer = millis();
+      ledState = false;
+    }
+    buttonNum = buttonChoice();
+    if ((buttonNum > -1) && (buttonNum < 12)) {
+      valScale = buttonNum;
+      select = true;
+    }
+  }
+
+  switch (valScale) {
+    case 0:
+      memcpy(noteInterval, modeIonian, sizeof noteInterval);
+      break;
+    case 1:
+      memcpy(noteInterval, modeDorian, sizeof noteInterval);
+      break;
+    case 2:
+      memcpy(noteInterval, modePhrygian, sizeof noteInterval);
+      break;
+    case 3:
+      memcpy(noteInterval, scaleNone, sizeof noteInterval);
+      break;
+    case 4:
+      memcpy(noteInterval, modeLydian, sizeof noteInterval);
+      break;
+    case 5:
+      memcpy(noteInterval, modeMixolydian, sizeof noteInterval);
+      break;
+    case 6:
+      memcpy(noteInterval, modeAeolian, sizeof noteInterval);
+      break;
+    case 7:
+      memcpy(noteInterval, modeLocrian, sizeof noteInterval);
+      break;
+    case 8:
+      memcpy(noteInterval, scaleMajorPentatonic, sizeof noteInterval);
+      break;
+    case 9:
+      memcpy(noteInterval, scaleMinorPentatonic, sizeof noteInterval);
+      break;
+    case 10:
+      memcpy(noteInterval, scaleBlues, sizeof noteInterval);
+      break;
+    case 11:
+      memcpy(noteInterval, scaleWholeTone, sizeof noteInterval);
+      break;
+  }
+}
+
+void setupRoot() {
+  ledTimer = millis();
+  updateButtons();
+  flashLEDs(4);
+  int buttonNum;
+  bool select = false;
+  while (select == false) {  // select root note
+    if (!(ledState) && (millis() > (ledTimer + 600))) {
+      digitalWrite(led_Green, HIGH);
+      ledTimer = millis();
+      ledState = true;
+    } else if ((ledState) && (millis() > (ledTimer + 600))) {
+      digitalWrite(led_Green, LOW);
+      ledTimer = millis();
+      ledState = false;
+    }
+    buttonNum = buttonChoice();
+    if ((buttonNum > -1) && (buttonNum < 12)) {
+      valRoot = buttonNum;
+      select = true;
+      delay(50);
+      updateButtons();
+      buttonNum = -1;
+    }
+  }
+}
+
+void setupKnob() {
+  ledTimer = millis();
+  updateButtons();
+  flashLEDs(5);
+  int buttonNum;
+  bool select = false;
+  while (select == false) {  // select knob function - 1 = velocity, 2 = mod cc, 3 = pan cc, 4 = expression cc
+    if (!(ledState) && (millis() > (ledTimer + 400))) {
+      digitalWrite(led_Green, HIGH);
+      ledTimer = millis();
+      ledState = true;
+    } else if ((ledState) && (millis() > (ledTimer + 400))) {
+      digitalWrite(led_Green, LOW);
+      ledTimer = millis();
+      ledState = false;
+    }
+    digitalWrite(led_Green, HIGH);
+    buttonNum = buttonChoice();
+    if ((buttonNum > -1) && (buttonNum < 4)) {
+      knobFunction = buttonNum;
+      select = true;
+      delay(50);
+      updateButtons();
+      buttonNum = -1;
+    }
+  }
 }
 
 void loop() {
-  // Ensure device is connected to BLE
-  if (midiBT && (deviceConnected == false)) {
-    digitalWrite(led_Blue, HIGH);
-    delay(1000);
-    digitalWrite(led_Blue, LOW);
-    delay(1000);
+  // if BLE is enabled, flash blue LED while waiting for connection
+  if (((valInput == 1) || (valInput == 2)) && (deviceConnected == false)) {
+    if (!(ledState) && (millis() > (ledTimer + ledTime))) {
+      digitalWrite(led_Blue, HIGH);
+      ledTimer = millis();
+      ledState = true;
+    } else if ((ledState) && (millis() > (ledTimer + ledTime))) {
+      digitalWrite(led_Blue, LOW);
+      ledTimer = millis();
+      ledState = false;
+    }
   }
 
-  // Enter Default Mode
-  else {
-    if (midiBT) digitalWrite(led_Blue, HIGH);
-    updatePots();  // Check for changes to pot/fader
+  else {  // if BLE connected/no BLE, run loop
+    if ((valInput == 1) || (valInput == 2)) digitalWrite(led_Blue, HIGH);
+    updatePots();  // check for changes to pot/fader
 
-    if (stateChange) {  // Change octave if needed
+    if (stateChange) {  // change octave if needed
       setNotes();
       stateChange = false;
 
@@ -246,199 +477,55 @@ void loop() {
       }
     }
 
-    updateButtons();  // Check for button presses
-    doMIDI();         // Send any required MIDI messages
+    updateButtons();  // check for button presses
+    doMIDI();         // send any required MIDI messages
 
-    if (average1
-        == 0) {                                       // if velocity is turned all the way down, allow for button combinations to change settings
-      if (button9.pressed() && button10.pressed()) {  // press 9 & 10 to select root, scale, and knob function again
+    if ((average1 == 0) && (faderValue == 0)) {  // alternative functions accessible when velocity and octave both turned to 0
+      if (button1.released()) {                  // select channel
+        setupMIDI();
+        flashLEDs(1);
+        updateButtons();
+      } else if (button2.released()) {  // select scale
+        setupScale(false);
+        flashLEDs(2);
+        updateButtons();
+      } else if (button3.released()) {  // select root
+        setupRoot();
         flashLEDs(3);
-        selectScale = false;
-        selectRoot = false;
-        selectKnob = false;
-        setupMode();
-      }
-      if (button11.pressed() && button12.pressed()) {  // press 11 & 12 to select all options
+        updateButtons();
+      } else if (button4.released()) {  // select knob function
+        setupKnob();
         flashLEDs(5);
-        selectOutput = false;
-        selectChan = false;
-        selectScale = false;
-        selectRoot = false;
-        selectKnob = false;
+        updateButtons();
+      } else if (button5.released()) {  // full setup
         setupMode();
+        flashLEDs(4);
+        updateButtons();
+      } else if (button9.pressed()) {  // load preset
+        selectPreset();
+        flashLEDs(9);
+        updateButtons();
+      } else if (button12.released()) {  // save preset
+        savePreset();
+        flashLEDs(12);
+        updateButtons();
       }
     }
   }
 
 #if ENABLE_TRS
-  if (midiDIN) DIN_MIDI.read();
+  if ((valInput == 0) || (valInput == 2)) DIN_MIDI.read();
 #endif
-}
-
-void setupMode() {
-  int buttonNum = -1;  // used to return number of button pressed
-
-  flashLEDs(1);
-  delay(100);
-  flashLEDs(1);
-
-#if (ENABLE_TRS)
-  while (selectOutput == false) {  // select output mode between BT, TRS, or both
-    digitalWrite(led_Green, HIGH);
-    buttonNum = buttonChoice();
-    switch (buttonNum) {
-      case 0:  // output only TRS
-        midiBT = false;
-        midiDIN = true;
-        selectOutput = true;
-        break;
-      case 1:  // output only BT
-        midiBT = true;
-        midiDIN = false;
-        selectOutput = true;
-        selectOutput = true;
-        break;
-      case 2:  // output both
-        midiBT = true;
-        midiDIN = true;
-        selectOutput = true;
-        break;
-      case 10:  // trs output, default other options
-        midiBT = false;
-        midiDIN = true;
-        selectOutput = true;
-        selectChan = true;
-        selectRoot = true;
-        selectScale = true;
-        selectKnob = true;
-        break;
-      case 11:  // bt output, default other options
-        midiBT = true;
-        midiDIN = false;
-        selectOutput = true;
-        selectChan = true;
-        selectRoot = true;
-        selectScale = true;
-        selectKnob = true;
-        break;
-    }
-  }
-#elif (!ENABLE_TRS)
-  selectOutput = true;
-#endif
-
-  if (!selectKnob) flashLEDs(2);
-
-  while (selectChan == false) {  // select MIDI channel
-    digitalWrite(led_Green, HIGH);
-    buttonNum = buttonChoice();
-    if (buttonNum > -1) {
-      midiChan = buttonNum + 1;  // set channel between 1-12 (instead of 0-11)
-      selectChan = true;
-      buttonNum = -1;
-      delay(50);
-      updateButtons();
-    }
-  }
-
-  if (!selectKnob) flashLEDs(3);
-
-  while (selectScale == false) {  // select scale
-
-    digitalWrite(led_Green, HIGH);
-    buttonNum = buttonChoice();
-
-    if ((buttonNum > -1) && (buttonNum < 12)) {
-
-      switch (buttonNum) {
-        case 0:
-          memcpy(noteInterval, modeIonian, sizeof noteInterval);
-          break;
-        case 1:
-          memcpy(noteInterval, modeDorian, sizeof noteInterval);
-          break;
-        case 2:
-          memcpy(noteInterval, modePhrygian, sizeof noteInterval);
-          break;
-        case 3:
-          memcpy(noteInterval, scaleNone, sizeof noteInterval);
-          break;
-        case 4:
-          memcpy(noteInterval, modeLydian, sizeof noteInterval);
-          break;
-        case 5:
-          memcpy(noteInterval, modeMixolydian, sizeof noteInterval);
-          break;
-        case 6:
-          memcpy(noteInterval, modeAeolian, sizeof noteInterval);
-          break;
-        case 7:
-          memcpy(noteInterval, modeLocrian, sizeof noteInterval);
-          break;
-        case 8:
-          memcpy(noteInterval, scaleMajorPentatonic, sizeof noteInterval);
-          break;
-        case 9:
-          memcpy(noteInterval, scaleMinorPentatonic, sizeof noteInterval);
-          break;
-        case 10:
-          memcpy(noteInterval, scaleBlues, sizeof noteInterval);
-          break;
-        case 11:
-          memcpy(noteInterval, scaleWholeTone, sizeof noteInterval);
-          break;
-      }
-      selectScale = true;
-
-      delay(50);
-      updateButtons();
-
-      buttonNum = -1;
-    }
-  }
-
-  if (!selectKnob) flashLEDs(4);
-
-  while (selectRoot == false) {  // select root note
-
-    digitalWrite(led_Green, HIGH);
-    buttonNum = buttonChoice();
-    if ((buttonNum > -1) && (buttonNum < 12)) {
-      noteRoot = buttonNum;
-      selectRoot = true;
-      delay(50);
-      updateButtons();
-      buttonNum = -1;
-    }
-  }
-
-  if (!selectKnob) flashLEDs(5);
-
-  while (selectKnob == false) {  // select knob function
-
-    digitalWrite(led_Green, HIGH);
-    buttonNum = buttonChoice();
-    if ((buttonNum > -1) && (buttonNum < 4)) {
-      knobFunction = buttonNum;
-      selectKnob = true;
-      delay(50);
-      updateButtons();
-      buttonNum = -1;
-    }
-  }
-
-  flashLEDs(2);
-  delay(50);
-  flashLEDs(2);
 }
 
 void flashLEDs(int flashes) {
-  for (int i = 0; i < flashes; i++) {
-    digitalWrite(led_Green, LOW);
+  for (int i = 0; i < flashes + 1; i++) {
+    digitalWrite(led_Green, HIGH);
     digitalWrite(led_Blue, HIGH);
-    delay(75);
+    delay(45);
+    digitalWrite(led_Green, LOW);
     digitalWrite(led_Blue, LOW);
-    delay(30);
+    delay(35);
   }
 }
 
@@ -596,7 +683,7 @@ void doMIDI() {
 }
 
 void setNotes() {
-  buttonNotes[0] = noteRoot + ((faderValue)*12);
+  buttonNotes[0] = valRoot + ((faderValue)*12);
   for (int i = 1; i < 12; i++) {
     buttonNotes[i] = buttonNotes[i - 1] + noteInterval[i - 1];
   }
@@ -605,25 +692,25 @@ void setNotes() {
 int buttonChoice() {
   updateButtons();
 
-  if (button1.rose()) return 0;
-  else if (button2.rose()) return 1;
-  else if (button3.rose()) return 2;
-  else if (button4.rose()) return 3;
-  else if (button5.rose()) return 4;
-  else if (button6.rose()) return 5;
-  else if (button7.rose()) return 6;
-  else if (button8.rose()) return 7;
-  else if (button9.rose()) return 8;
-  else if (button10.rose()) return 9;
-  else if (button11.rose()) return 10;
-  else if (button12.rose()) return 11;
+  if (button1.released()) return 0;
+  else if (button2.released()) return 1;
+  else if (button3.released()) return 2;
+  else if (button4.released()) return 3;
+  else if (button5.released()) return 4;
+  else if (button6.released()) return 5;
+  else if (button7.released()) return 6;
+  else if (button8.released()) return 7;
+  else if (button9.released()) return 8;
+  else if (button10.released()) return 9;
+  else if (button11.released()) return 10;
+  else if (button12.released()) return 11;
   else return -1;
 
   delay(100);
 }
 
 void sendNoteOn(int note) {
-  if (midiBT) {
+  if ((valInput == 1) || (valInput == 2)) {
     midiPacket[2] = midiChan + 144;
     midiPacket[3] = note;
     midiPacket[4] = velocityValue;
@@ -631,13 +718,13 @@ void sendNoteOn(int note) {
     pCharacteristic->notify();
   }
 #if ENABLE_TRS
-  if (midiDIN) DIN_MIDI.sendNoteOn(note, velocityValue, midiChan);
+  if ((valInput == 0) || (valInput == 2)) DIN_MIDI.sendNoteOn(note, velocityValue, midiChan);
 #endif
   delay(1);
 }
 
 void sendNoteOff(int note) {
-  if (midiBT) {
+  if ((valInput == 1) || (valInput == 2)) {
     midiPacket[2] = midiChan + 128;
     midiPacket[3] = note;
     midiPacket[4] = 0;
@@ -646,13 +733,13 @@ void sendNoteOff(int note) {
   }
 
 #if ENABLE_TRS
-  if (midiDIN) DIN_MIDI.sendNoteOff(note, 0, midiChan);
+  if ((valInput == 0) || (valInput == 2)) DIN_MIDI.sendNoteOff(note, 0, midiChan);
 #endif
   delay(1);
 }
 
 void sendCC(int CC, int value) {
-  if (midiBT) {
+  if ((valInput == 1) || (valInput == 2)) {
     midiPacket[2] = midiChan + 176;
     midiPacket[3] = CC;
     midiPacket[4] = value;
@@ -660,7 +747,63 @@ void sendCC(int CC, int value) {
     pCharacteristic->notify();
   }
 #if ENABLE_TRS
-  if (midiDIN) DIN_MIDI.sendControlChange(CC, value, midiChan);
+  if ((valInput == 0) || (valInput == 2)) DIN_MIDI.sendControlChange(CC, value, midiChan);
 #endif
   delay(1);
+}
+
+void savePreset() {  // save preset to one of 8 preset slots
+  ledTimer = millis();
+  int buttonNum = -1;
+  bool select = false;
+  delay(50);
+  flashLEDs(7);
+
+  while (select == false) {
+    if (!(ledState) && (millis() > (ledTimer + 1500))) {
+      digitalWrite(led_Green, HIGH);
+      ledTimer = millis();
+      ledState = true;
+    } else if ((ledState) && (millis() > (ledTimer + 750))) {
+      digitalWrite(led_Green, LOW);
+      ledTimer = millis();
+      ledState = false;
+    }
+    buttonNum = buttonChoice();
+    switch (buttonNum) {
+      case 0 ... 7:  // select between presets 0 through 7
+        storeEEPROM(buttonNum);
+        flashLEDs((buttonNum + 1) * 2);
+        select = true;
+        break;
+      case 9 ... 11:  // press bottom row to exit and not save
+        select = true;
+        break;
+    }
+  }
+}
+
+void storeEEPROM(int presetNum) {  // write current settings to EEPROM
+  EEPROM.write(baseEEPROM + (presetNum * 10) + 0, valInput);
+  EEPROM.write(baseEEPROM + (presetNum * 10) + 1, midiChan);
+  EEPROM.write(baseEEPROM + (presetNum * 10) + 2, valScale);
+  EEPROM.write(baseEEPROM + (presetNum * 10) + 3, valRoot);
+  EEPROM.write(baseEEPROM + (presetNum * 10) + 4, knobFunction);
+
+  EEPROM.commit();
+}
+
+void recallEEPROM(int presetNum) {  // recall settings from EEPROM
+  valInput = EEPROM.read(baseEEPROM + (presetNum * 10) + 0);
+  if (!((valInput > -1) || (valInput < 3))) valInput = DEFAULTINPUT;  // validate input is between 0 and 2
+  midiChan = EEPROM.read(baseEEPROM + (presetNum * 10) + 1);
+  if (!((midiChan > -1) || (midiChan < 12))) midiChan = DEFAULTCHAN;  // validate channel is between 0 and 11
+  valScale = EEPROM.read(baseEEPROM + (presetNum * 10) + 2);
+  if (!((valScale > -1) || (valScale < 12))) valScale = DEFAULTSCALE;  // validate scale is between 0 and 11
+  valRoot = EEPROM.read(baseEEPROM + (presetNum * 10) + 3);
+  if (!((valRoot > -1) || (valRoot < 12))) valRoot = DEFAULTROOT;  // validate root is between 0 and 11
+  knobFunction = EEPROM.read(baseEEPROM + (presetNum * 10) + 4);
+  if (!((knobFunction > -1) || (knobFunction < 4))) knobFunction = DEFAULTKNOB;  // validate knob function is between 0 and 3
+
+  setupScale(true);  // set note values based on scale
 }
