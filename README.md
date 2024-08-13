@@ -1,25 +1,64 @@
 # NMSVE.rm
-<img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/01.jpg" width="700">
+<img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/rev2_1.jpg" width="700">
 
 This is a fork of the NMSVE firmware by <a href=https://thisisnoiseinc.com/en-ca>this.is.Noise</a>
 
+---
+
+### Overview
 I have added the following functionality:
 * Selectable modes/scales
 * Selectable root note
 * Selectable knob function
 * Output over TRS MIDI, BT (Bluetooth Low Energy), or both
 
-<img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/02.jpg" width="400">
+These settings can be saved to 8 preset slots, each of which can be quickly recalled at boot.
 
-To support TRS MIDI output I have modified the original case (<a href=https://www.thingiverse.com/thing:5356460>thingiverse</a>) by making it 5mm thicker and hollowing out an area to fit the TRS jack and resistors. In this case the TRS jack is wired for TRS-A connections. Ground goes to ground on the NMSVE, the sleeve is wired through a 33 Ohm resistor to the 3.3V pin and the tip is wired through a 10 Ohm resistor to the TX pin. 
+*If you want to use this firmware without doing the hardware modification simply set **#define ENABLE_TRS** to **false** instead of **true**. 
+This will exclude any code related to sending data via TRS and will also skip the first selection step below (the device will boot staight to MIDI channel selection).*
 
-If you want to use this firmware without doing the hardware modification simply set **#define ENABLE_TRS** to *false* instead of *true*. 
-This will exclude any code related to sending data via TRS and will also skip the first selection step below (the device will boot staight to MIDI channel selection).
+<img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/rev2_2.jpg" width="400">
 
-<img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/03.jpg" width="400">
+---
+
+### Assembly
+
+#### Parts Required:
+* <a href=https://thisisnoiseinc.com/en-ca/pages/noise-machine-nmsve>NMSVE</a>
+* <a href=https://github.com/roge-rm/NMCode/tree/main/stl>3D printed housing</a>
+* Female 3.5mm TRS jack
+* 33 Ohm resistor
+* 10 Ohm resistor
+* Hookup wire
+
+This project has now been updated with a second revision of a custom case. This case has been made larger than the original for improved ergonomics, room for a TRS MIDI out port, and a slightly larger battery. See <a href=https://github.com/roge-rm/NMCode/tree/main/stl>the STL folder</a> for both revisions of my modified/remade housing.
+
+For my use the TRS jack is wired for TRS-A connections (<a href=https://github.com/roge-rm/NMCode/blob/main/images/pinout.png>see pinout</a>):
+* Ground goes to ground on the NMSVE
+* The sleeve is wired through a 33 Ohm resistor to the 3.3V pin
+* The tip is wired through a 10 Ohm resistor to the TX pin
+
+<img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/rev2_4.jpg" width="400">
+
+---
+
+### Flashing Instructions
+1. Download <a href=https://www.arduino.cc/en/software>Arduino</a>
+2. <a href=https://randomnerdtutorials.com/installing-the-esp32-board-in-arduino-ide-windows-instructions/>Install ESP32</a> in Arduino
+3. Load sketch, install required libraries (<a href=https://github.com/FortySevenEffects/arduino_midi_library>MIDI</a>, <a href=https://github.com/thomasfredericks/Bounce2>Bounce2</a>)
+4. Select board Firebeetle-ESP32
+5. Plug in USB to serial FTDI adapter, select port in Arduino
+6. Connect adapter to NMSVE - see <a href=https://github.com/roge-rm/NMCode/blob/main/images/pinout.png>pinout</a>
+- Black/GND to GND on NMSVE
+- Green/TX to RX on NMSVE
+- White/RX to TX on NMSVE
+7. Turn on NMSVE while holding boot pin to ground wire - POWER and CONNECT LEDs should be solid
+8. Flash in Arduino
+
+---
 
 ### Usage
-**On startup, the device prompts you to select from one of the eight presets or to run a full setup. Presets can be saved from any combination of configurations using the full setup.**
+**On startup, the device prompts you to select from one of the eight presets or to run a full setup. Presets can be saved from any combination of configurations.**
 
 * Buttons 1-8 select a preset
 * Button 12 runs full setup
@@ -74,19 +113,5 @@ Pressing 9 or 12 will prompt you to choose the slot to load/save preset. Press b
 
 Cheers, I hope you enjoy.
 <br>rm.
-
-### Flashing Instructions
-1. Download <a href=https://www.arduino.cc/en/software>Arduino</a>
-2. <a href=https://randomnerdtutorials.com/installing-the-esp32-board-in-arduino-ide-windows-instructions/>Install ESP32</a> in Arduino
-3. Load sketch, install required libraries (<a href=https://github.com/FortySevenEffects/arduino_midi_library>MIDI</a>, <a href=https://github.com/thomasfredericks/Bounce2>Bounce2</a>)
-4. Select board Firebeetle-ESP32
-5. Plug in USB to serial FTDI adapter, select port in Arduino
-6. Connect adapter to NMSVE - see <a href=https://github.com/roge-rm/NMCode/blob/main/images/pinout.png>pinout</a>
-- Black/GND to GND on NMSVE
-- Green/TX to RX on NMSVE
-- White/RX to TX on NMSVE
-7. Turn on NMSVE while holding boot pin to ground wire - POWER and CONNECT LEDs should be solid
-8. Flash in Arduino
-
 
 
