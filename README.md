@@ -30,6 +30,7 @@ This will exclude any code related to sending data via TRS and will also skip th
 * 33 Ohm resistor
 * 10 Ohm resistor
 * Hookup wire
+* USB to TTL adapter (for flashing) 
 
 This project has now been updated with a second revision of a custom case. This case has been made larger than the original for improved ergonomics, room for a TRS MIDI out port, and a slightly larger battery. See <a href=https://github.com/roge-rm/NMCode/tree/main/stl>the STL folder</a> for both revisions of my modified/remade housing.
 
