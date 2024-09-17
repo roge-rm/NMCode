@@ -11,7 +11,7 @@
     https://github.com/roge-rm/NMCode
 */
 
-#define FIRMWARE_VERSION 20240811
+#define FIRMWARE_VERSION 20240812
 
 #define ENABLE_TRS true  // set to false to use without hardware modification
 
@@ -33,12 +33,13 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial, DIN_MIDI);
 #endif
 
 // set defaults
-#define DEFAULTINPUT 2  // default input method (0 = TRS only, 1 = BT only, 2 = both)
+#define DEFAULTINPUT 0  // default input method (0 = TRS only, 1 = BT only, 2 = both)
 #define DEFAULTROOT 0   // default root note
 #define DEFAULTSCALE 0  // default scale (same as below)
 #define DEFAULTCHAN 9   // default MIDI channel
 #define DEFAULTKNOB 0   // default knob function
 #define baseEEPROM 100  // start address for EEPROM values
+#define BLENAME "NMSVE-rm" // name for BLE device
 
 // pin assignments
 int faderPin = 36;   // slider
@@ -185,7 +186,7 @@ void setup() {
 #endif
 
   if ((valInput == 1) || (valInput == 2)) {
-    BLEDevice::init("NMSVE.rm");
+    BLEDevice::init(BLENAME);
 
     // Create the BLE Server
     BLEServer *pServer = BLEDevice::createServer();
@@ -323,7 +324,7 @@ void setupMIDI() {
     }
     buttonNum = buttonChoice();
     if (buttonNum > -1) {
-      midiChan = buttonNum;  // set channel between 1-12 (instead of 0-11)
+      midiChan = buttonNum;
       select = true;
     }
   }
