@@ -33,13 +33,14 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial, DIN_MIDI);
 #endif
 
 // set defaults
-#define DEFAULTOUTPUT 0     // default output method (0 = TRS only, 1 = BT only, 2 = both)
-#define DEFAULTROOT 0       // default root note
-#define DEFAULTSCALE 0      // default scale (same as below)
-#define DEFAULTCHAN 9       // default MIDI channel
-#define DEFAULTKNOB 0       // default knob function
-#define baseEEPROM 100      // start address for EEPROM values
-#define BLENAME "NMSVE-rm"  // name for BLE device
+#define DEFAULTOUTPUT 0      // default output method (0 = TRS only, 1 = BT only, 2 = both)
+#define DEFAULTROOT 0        // default root note
+#define DEFAULTSCALE 0       // default scale (same as below)
+#define DEFAULTCHAN 9        // default MIDI channel
+#define DEFAULTKNOB 0        // default knob function
+#define DEFAULTVELOCITY 100  // default velocity
+#define baseEEPROM 100       // start address for EEPROM values
+#define BLENAME "NMSVE-rm"   // name for BLE device
 
 // pin assignments
 int faderPin = 36;   // slider
@@ -51,14 +52,15 @@ int buttonPins[12] = { 16, 17, 18, 21, 19, 25, 22, 23, 27, 26, 35, 34 };
 // bool operators
 bool deviceConnected = false;  // track whether bluetooth device is connected
 bool stateChange = false;      // flag set to run note reassignment
+bool enteredSetup = false;     // use to prevent loops when setting up
 
 // state variables
 int valOutput = DEFAULTOUTPUT;
 int midiChan = DEFAULTCHAN;
 int valScale = DEFAULTSCALE;
 int valRoot = DEFAULTROOT;
-int knobFunction = DEFAULTKNOB;  // change knob function: 0 = velocity, 1 = modulation, 2 = pan, 3 = expression
-int velocityValue = 100;         // MIDI velocity value
+int knobFunction = DEFAULTKNOB;       // change knob function: 0 = velocity, 1 = modulation, 2 = pan, 3 = expression
+int velocityValue = DEFAULTVELOCITY;  // MIDI velocity value
 
 // scale interval definitions (semitones between steps)
 int noteInterval[11];
@@ -324,7 +326,7 @@ void setupMIDI() {
     }
     buttonNum = buttonChoice();
     if (buttonNum > -1) {
-      midiChan = buttonNum + 1; // add one to MIDI value as channel appears to need to be sent as 1-16 instead of 0-15
+      midiChan = buttonNum + 1;  // add one to MIDI value as channel appears to need to be sent as 1-16 instead of 0-15
       select = true;
     }
   }
@@ -469,6 +471,7 @@ void loop() {
 
     if (stateChange) {  // change octave if needed
       setNotes();
+      enteredSetup = false;  // move slider to re-enable alternative setup mode (to prevent setup loops)
       stateChange = false;
 
       if (faderValue == 0 || faderValue == 2 || faderValue == 4 || faderValue == 6 || faderValue == 8) {
@@ -481,32 +484,42 @@ void loop() {
     updateButtons();  // check for button presses
     doMIDI();         // send any required MIDI messages
 
-    if ((average1 == 0) && (faderValue == 0)) {  // alternative functions accessible when velocity and octave both turned to 0
-      if (button1.released()) {                  // select channel
+    if ((!enteredSetup) && (average1 == 0) && (faderValue == 8)) {  // alternative functions accessible when velocity turned to left and octave slid to right, and setup mode has not already been triggered
+      if (button1.released()) {                                     // select channel
+        enteredSetup = true;
         setupMIDI();
         flashLEDs(1);
         updateButtons();
       } else if (button2.released()) {  // select scale
+        enteredSetup = true;
         setupScale(false);
         flashLEDs(2);
         updateButtons();
       } else if (button3.released()) {  // select root
+        enteredSetup = true;
         setupRoot();
         flashLEDs(3);
         updateButtons();
       } else if (button4.released()) {  // select knob function
+        enteredSetup = true;
+        resetDEFAULTS();
         setupKnob();
         flashLEDs(5);
         updateButtons();
       } else if (button5.released()) {  // full setup
+        enteredSetup = true;
+        resetDEFAULTS();
         setupMode();
         flashLEDs(4);
         updateButtons();
       } else if (button9.pressed()) {  // load preset
+        enteredSetup = true;
+        resetDEFAULTS();
         selectPreset();
         flashLEDs(9);
         updateButtons();
       } else if (button12.released()) {  // save preset
+        enteredSetup = true;
         savePreset();
         flashLEDs(12);
         updateButtons();
@@ -807,4 +820,8 @@ void recallEEPROM(int presetNum) {  // recall settings from EEPROM
   if (!((knobFunction > -1) || (knobFunction < 4))) knobFunction = DEFAULTKNOB;  // validate knob function is between 0 and 3
 
   setupScale(true);  // set note values based on scale
+}
+
+void resetDEFAULTS() {
+  velocityValue = DEFAULTVELOCITY;
 }
