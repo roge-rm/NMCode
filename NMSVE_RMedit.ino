@@ -11,7 +11,7 @@
     https://github.com/roge-rm/NMCode
 */
 
-#define FIRMWARE_VERSION 20240812
+#define FIRMWARE_VERSION 20240917
 
 #define ENABLE_TRS true  // set to false to use without hardware modification
 
@@ -33,13 +33,13 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial, DIN_MIDI);
 #endif
 
 // set defaults
-#define DEFAULTINPUT 0  // default input method (0 = TRS only, 1 = BT only, 2 = both)
-#define DEFAULTROOT 0   // default root note
-#define DEFAULTSCALE 0  // default scale (same as below)
-#define DEFAULTCHAN 9   // default MIDI channel
-#define DEFAULTKNOB 0   // default knob function
-#define baseEEPROM 100  // start address for EEPROM values
-#define BLENAME "NMSVE-rm" // name for BLE device
+#define DEFAULTOUTPUT 0     // default output method (0 = TRS only, 1 = BT only, 2 = both)
+#define DEFAULTROOT 0       // default root note
+#define DEFAULTSCALE 0      // default scale (same as below)
+#define DEFAULTCHAN 9       // default MIDI channel
+#define DEFAULTKNOB 0       // default knob function
+#define baseEEPROM 100      // start address for EEPROM values
+#define BLENAME "NMSVE-rm"  // name for BLE device
 
 // pin assignments
 int faderPin = 36;   // slider
@@ -53,7 +53,7 @@ bool deviceConnected = false;  // track whether bluetooth device is connected
 bool stateChange = false;      // flag set to run note reassignment
 
 // state variables
-int valInput = DEFAULTINPUT;
+int valOutput = DEFAULTOUTPUT;
 int midiChan = DEFAULTCHAN;
 int valScale = DEFAULTSCALE;
 int valRoot = DEFAULTROOT;
@@ -180,12 +180,12 @@ void setup() {
   selectPreset();  // choose one of the available presets or initiate setup mode
 
 #if ENABLE_TRS
-  if ((valInput == 0) || (valInput == 2)) {
+  if ((valOutput == 0) || (valOutput == 2)) {
     DIN_MIDI.begin(MIDI_CHANNEL_OMNI);
   }
 #endif
 
-  if ((valInput == 1) || (valInput == 2)) {
+  if ((valOutput == 1) || (valOutput == 2)) {
     BLEDevice::init(BLENAME);
 
     // Create the BLE Server
@@ -257,7 +257,7 @@ void selectPreset() {
 }
 
 void setupMode() {
-  setupInput();
+  setupOutput();
   setupMIDI();
   setupScale(false);
   setupRoot();
@@ -266,7 +266,7 @@ void setupMode() {
   flashLEDs(3);
 }
 
-void setupInput() {
+void setupOutput() {
   ledTimer = millis();
   updateButtons();
 
@@ -288,21 +288,21 @@ void setupInput() {
     buttonNum = buttonChoice();
     switch (buttonNum) {
       case 0:  // output only TRS
-        valInput = 0;
+        valOutput = 0;
         select = true;
         break;
       case 1:  // output only BT
-        valInput = 1;
+        valOutput = 1;
         select = true;
         break;
       case 2:  // output both
-        valInput = 2;
+        valOutput = 2;
         select = true;
         break;
     }
   }
 #elif (!ENABLE_TRS)
-  valInput = 1;
+  valOutput = 1;
 #endif
 }
 
@@ -324,7 +324,7 @@ void setupMIDI() {
     }
     buttonNum = buttonChoice();
     if (buttonNum > -1) {
-      midiChan = buttonNum;
+      midiChan = buttonNum + 1; // add one to MIDI value as channel appears to need to be sent as 1-16 instead of 0-15
       select = true;
     }
   }
@@ -451,7 +451,7 @@ void setupKnob() {
 
 void loop() {
   // if BLE is enabled, flash blue LED while waiting for connection
-  if (((valInput == 1) || (valInput == 2)) && (deviceConnected == false)) {
+  if (((valOutput == 1) || (valOutput == 2)) && (deviceConnected == false)) {
     if (!(ledState) && (millis() > (ledTimer + ledTime))) {
       digitalWrite(led_Blue, HIGH);
       ledTimer = millis();
@@ -464,7 +464,7 @@ void loop() {
   }
 
   else {  // if BLE connected/no BLE, run loop
-    if ((valInput == 1) || (valInput == 2)) digitalWrite(led_Blue, HIGH);
+    if ((valOutput == 1) || (valOutput == 2)) digitalWrite(led_Blue, HIGH);
     updatePots();  // check for changes to pot/fader
 
     if (stateChange) {  // change octave if needed
@@ -515,7 +515,7 @@ void loop() {
   }
 
 #if ENABLE_TRS
-  if ((valInput == 0) || (valInput == 2)) DIN_MIDI.read();
+  if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.read();
 #endif
 }
 
@@ -711,7 +711,7 @@ int buttonChoice() {
 }
 
 void sendNoteOn(int note) {
-  if ((valInput == 1) || (valInput == 2)) {
+  if ((valOutput == 1) || (valOutput == 2)) {
     midiPacket[2] = midiChan + 144;
     midiPacket[3] = note;
     midiPacket[4] = velocityValue;
@@ -719,13 +719,13 @@ void sendNoteOn(int note) {
     pCharacteristic->notify();
   }
 #if ENABLE_TRS
-  if ((valInput == 0) || (valInput == 2)) DIN_MIDI.sendNoteOn(note, velocityValue, midiChan);
+  if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendNoteOn(note, velocityValue, midiChan);
 #endif
   delay(1);
 }
 
 void sendNoteOff(int note) {
-  if ((valInput == 1) || (valInput == 2)) {
+  if ((valOutput == 1) || (valOutput == 2)) {
     midiPacket[2] = midiChan + 128;
     midiPacket[3] = note;
     midiPacket[4] = 0;
@@ -734,13 +734,13 @@ void sendNoteOff(int note) {
   }
 
 #if ENABLE_TRS
-  if ((valInput == 0) || (valInput == 2)) DIN_MIDI.sendNoteOff(note, 0, midiChan);
+  if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendNoteOff(note, 0, midiChan);
 #endif
   delay(1);
 }
 
 void sendCC(int CC, int value) {
-  if ((valInput == 1) || (valInput == 2)) {
+  if ((valOutput == 1) || (valOutput == 2)) {
     midiPacket[2] = midiChan + 176;
     midiPacket[3] = CC;
     midiPacket[4] = value;
@@ -748,7 +748,7 @@ void sendCC(int CC, int value) {
     pCharacteristic->notify();
   }
 #if ENABLE_TRS
-  if ((valInput == 0) || (valInput == 2)) DIN_MIDI.sendControlChange(CC, value, midiChan);
+  if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendControlChange(CC, value, midiChan);
 #endif
   delay(1);
 }
@@ -785,7 +785,7 @@ void savePreset() {  // save preset to one of 8 preset slots
 }
 
 void storeEEPROM(int presetNum) {  // write current settings to EEPROM
-  EEPROM.write(baseEEPROM + (presetNum * 10) + 0, valInput);
+  EEPROM.write(baseEEPROM + (presetNum * 10) + 0, valOutput);
   EEPROM.write(baseEEPROM + (presetNum * 10) + 1, midiChan);
   EEPROM.write(baseEEPROM + (presetNum * 10) + 2, valScale);
   EEPROM.write(baseEEPROM + (presetNum * 10) + 3, valRoot);
@@ -795,10 +795,10 @@ void storeEEPROM(int presetNum) {  // write current settings to EEPROM
 }
 
 void recallEEPROM(int presetNum) {  // recall settings from EEPROM
-  valInput = EEPROM.read(baseEEPROM + (presetNum * 10) + 0);
-  if (!((valInput > -1) || (valInput < 3))) valInput = DEFAULTINPUT;  // validate input is between 0 and 2
+  valOutput = EEPROM.read(baseEEPROM + (presetNum * 10) + 0);
+  if (!((valOutput > -1) || (valOutput < 3))) valOutput = DEFAULTOUTPUT;  // validate input is between 0 and 2
   midiChan = EEPROM.read(baseEEPROM + (presetNum * 10) + 1);
-  if (!((midiChan > -1) || (midiChan < 12))) midiChan = DEFAULTCHAN;  // validate channel is between 0 and 11
+  if (!((midiChan > 0) || (midiChan < 13))) midiChan = DEFAULTCHAN;  // validate channel is between 1 and 12
   valScale = EEPROM.read(baseEEPROM + (presetNum * 10) + 2);
   if (!((valScale > -1) || (valScale < 12))) valScale = DEFAULTSCALE;  // validate scale is between 0 and 11
   valRoot = EEPROM.read(baseEEPROM + (presetNum * 10) + 3);
