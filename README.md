@@ -100,7 +100,12 @@ If presets have not been set up they will be launched with the default settings 
 
 Once booted the buttons are reassigned to whatever scale you chose, starting from the top left, with the root note of choice. The rotary knob will function as set above and the fader will choose the octave, as before.
 
-If you would like to change settings without restarting the device, turn the knob to zero (counter clockwise) and slide the fader all the way to the left. Then you can press the following buttons to change settings or save/load presets:
+---
+
+### Changing Settings
+If you would like to change settings without restarting the device, turn the knob to the _left_ all the way and slide the fader all the way to the _right_. 
+
+Then you can press the following buttons to change settings or save/load presets:
 
 * 1 Select MIDI channel
 * 2 Select scale
