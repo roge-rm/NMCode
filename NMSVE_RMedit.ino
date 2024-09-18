@@ -11,7 +11,7 @@
     https://github.com/roge-rm/NMCode
 */
 
-#define FIRMWARE_VERSION 20240917
+#define FIRMWARE_VERSION 20240917b
 
 #define ENABLE_TRS true  // set to false to use without hardware modification
 
@@ -724,46 +724,52 @@ int buttonChoice() {
 }
 
 void sendNoteOn(int note) {
-  if ((valOutput == 1) || (valOutput == 2)) {
-    midiPacket[2] = midiChan + 144;
-    midiPacket[3] = note;
-    midiPacket[4] = velocityValue;
-    pCharacteristic->setValue(midiPacket, 5);
-    pCharacteristic->notify();
-  }
+  if (!((average1 == 0) && (faderValue == 8))) {  // don't send note messages when enabling settings mode
+    if ((valOutput == 1) || (valOutput == 2)) {
+      midiPacket[2] = midiChan + 144;
+      midiPacket[3] = note;
+      midiPacket[4] = velocityValue;
+      pCharacteristic->setValue(midiPacket, 5);
+      pCharacteristic->notify();
+    }
 #if ENABLE_TRS
-  if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendNoteOn(note, velocityValue, midiChan);
+    if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendNoteOn(note, velocityValue, midiChan);
 #endif
-  delay(1);
+    delay(1);
+  }
 }
 
 void sendNoteOff(int note) {
-  if ((valOutput == 1) || (valOutput == 2)) {
-    midiPacket[2] = midiChan + 128;
-    midiPacket[3] = note;
-    midiPacket[4] = 0;
-    pCharacteristic->setValue(midiPacket, 5);
-    pCharacteristic->notify();
-  }
+  if (!((average1 == 0) && (faderValue == 8))) {  // don't send note messages when enabling settings mode
+    if ((valOutput == 1) || (valOutput == 2)) {
+      midiPacket[2] = midiChan + 128;
+      midiPacket[3] = note;
+      midiPacket[4] = 0;
+      pCharacteristic->setValue(midiPacket, 5);
+      pCharacteristic->notify();
+    }
 
 #if ENABLE_TRS
-  if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendNoteOff(note, 0, midiChan);
+    if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendNoteOff(note, 0, midiChan);
 #endif
-  delay(1);
+    delay(1);
+  }
 }
 
 void sendCC(int CC, int value) {
-  if ((valOutput == 1) || (valOutput == 2)) {
-    midiPacket[2] = midiChan + 176;
-    midiPacket[3] = CC;
-    midiPacket[4] = value;
-    pCharacteristic->setValue(midiPacket, 5);
-    pCharacteristic->notify();
-  }
+  if (!((average1 == 0) && (faderValue == 8))) {  // don't send messages when enabling settings mode
+    if ((valOutput == 1) || (valOutput == 2)) {
+      midiPacket[2] = midiChan + 176;
+      midiPacket[3] = CC;
+      midiPacket[4] = value;
+      pCharacteristic->setValue(midiPacket, 5);
+      pCharacteristic->notify();
+    }
 #if ENABLE_TRS
-  if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendControlChange(CC, value, midiChan);
+    if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendControlChange(CC, value, midiChan);
 #endif
-  delay(1);
+    delay(1);
+  }
 }
 
 void savePreset() {  // save preset to one of 8 preset slots
