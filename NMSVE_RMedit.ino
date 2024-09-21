@@ -9,16 +9,22 @@
 
    RM.edit by rm
     https://github.com/roge-rm/NMCode
+
+   ENABLE_BLE and UPWARD_BUTTONS config options by FalseTragedian
 */
 
-#define FIRMWARE_VERSION 20240917b
+#define FIRMWARE_VERSION 20240920
 
 #define ENABLE_TRS true  // set to false to use without hardware modification
+#define ENABLE_BLE true // set to false to disable Bluetooth MIDI
+#define UPWARD_BUTTONS false //set to true to reverse button order
 
+#if ENABLE_BLE
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h>
+#endif
 #define SERVICE_UUID "03b80e5a-ede8-4b33-a751-6ce34ec4c700"
 #define CHARACTERISTIC_UUID "7772e5db-3868-4112-a1a9-f2669d106bf3"
 
@@ -33,7 +39,7 @@ MIDI_CREATE_INSTANCE(HardwareSerial, Serial, DIN_MIDI);
 #endif
 
 // set defaults
-#define DEFAULTOUTPUT 0      // default output method (0 = TRS only, 1 = BT only, 2 = both)
+#define DEFAULTOUTPUT 2      // default output method (0 = TRS only, 1 = BT only, 2 = both)
 #define DEFAULTROOT 0        // default root note
 #define DEFAULTSCALE 0       // default scale (same as below)
 #define DEFAULTCHAN 9        // default MIDI channel
@@ -47,7 +53,12 @@ int faderPin = 36;   // slider
 int rotaryPin = 39;  // rotary Knob
 int led_Blue = 14;
 int led_Green = 4;
+#if UPWARD_BUTTONS
+//Reversed vertical order from original functionality - 1-4 on bottom 9-12 on top
+int buttonPins[12] = { 27, 26, 35, 34, 19, 25, 22, 23, 16, 17, 18, 21 };
+#else
 int buttonPins[12] = { 16, 17, 18, 21, 19, 25, 22, 23, 27, 26, 35, 34 };
+#endif
 
 // bool operators
 bool deviceConnected = false;  // track whether bluetooth device is connected
@@ -94,25 +105,27 @@ int total = 0;              // the running total
 int average1 = 0;           // average current state
 int lastaverage1 = 0;       // average previous state
 
-BLECharacteristic *pCharacteristic;
+#if ENABLE_BLE
+  BLECharacteristic *pCharacteristic;
 
-uint8_t midiPacket[] = {
-  0x80,  // header
-  0x80,  // timestamp, not implemented
-  0x00,  // status
-  0x3c,  // 0x3c == 60 == middle c
-  0x00   // velocity
-};
-
-class MyServerCallbacks : public BLEServerCallbacks {
-  void onConnect(BLEServer *pServer) {
-    deviceConnected = true;
+  uint8_t midiPacket[] = {
+    0x80,  // header
+    0x80,  // timestamp, not implemented
+    0x00,  // status
+    0x3c,  // 0x3c == 60 == middle c
+    0x00   // velocity
   };
 
-  void onDisconnect(BLEServer *pServer) {
-    deviceConnected = false;
-  }
-};
+  class MyServerCallbacks : public BLEServerCallbacks {
+    void onConnect(BLEServer *pServer) {
+      deviceConnected = true;
+    };
+
+    void onDisconnect(BLEServer *pServer) {
+      deviceConnected = false;
+    }
+  };
+#endif
 
 // create Bounce objects for each button
 Bounce2::Button button1 = Bounce2::Button();
@@ -187,6 +200,7 @@ void setup() {
   }
 #endif
 
+#if ENABLE_BLE
   if ((valOutput == 1) || (valOutput == 2)) {
     BLEDevice::init(BLENAME);
 
@@ -214,6 +228,7 @@ void setup() {
     pAdvertising->addServiceUUID(pService->getUUID());
     pAdvertising->start();
   }
+#endif
 
   delay(250);
 
@@ -272,7 +287,7 @@ void setupOutput() {
   ledTimer = millis();
   updateButtons();
 
-#if (ENABLE_TRS)
+#if (ENABLE_TRS && ENABLE_BLE)
   flashLEDs(1);
 
   int buttonNum;
@@ -305,6 +320,8 @@ void setupOutput() {
   }
 #elif (!ENABLE_TRS)
   valOutput = 1;
+#elif (!ENABLE_BLE)
+  valOutput = 0;
 #endif
 }
 
@@ -452,6 +469,7 @@ void setupKnob() {
 }
 
 void loop() {
+#if ENABLE_BLE
   // if BLE is enabled, flash blue LED while waiting for connection
   if (((valOutput == 1) || (valOutput == 2)) && (deviceConnected == false)) {
     if (!(ledState) && (millis() > (ledTimer + ledTime))) {
@@ -467,6 +485,7 @@ void loop() {
 
   else {  // if BLE connected/no BLE, run loop
     if ((valOutput == 1) || (valOutput == 2)) digitalWrite(led_Blue, HIGH);
+#endif
     updatePots();  // check for changes to pot/fader
 
     if (stateChange) {  // change octave if needed
@@ -525,7 +544,9 @@ void loop() {
         updateButtons();
       }
     }
+#if ENABLE_BLE
   }
+#endif
 
 #if ENABLE_TRS
   if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.read();
@@ -725,6 +746,7 @@ int buttonChoice() {
 
 void sendNoteOn(int note) {
   if (!((average1 == 0) && (faderValue == 8))) {  // don't send note messages when enabling settings mode
+#if ENABLE_BLE
     if ((valOutput == 1) || (valOutput == 2)) {
       midiPacket[2] = midiChan + 144;
       midiPacket[3] = note;
@@ -732,6 +754,7 @@ void sendNoteOn(int note) {
       pCharacteristic->setValue(midiPacket, 5);
       pCharacteristic->notify();
     }
+#endif
 #if ENABLE_TRS
     if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendNoteOn(note, velocityValue, midiChan);
 #endif
@@ -741,6 +764,7 @@ void sendNoteOn(int note) {
 
 void sendNoteOff(int note) {
   if (!((average1 == 0) && (faderValue == 8))) {  // don't send note messages when enabling settings mode
+#if ENABLE_BLE
     if ((valOutput == 1) || (valOutput == 2)) {
       midiPacket[2] = midiChan + 128;
       midiPacket[3] = note;
@@ -748,7 +772,7 @@ void sendNoteOff(int note) {
       pCharacteristic->setValue(midiPacket, 5);
       pCharacteristic->notify();
     }
-
+#endif
 #if ENABLE_TRS
     if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendNoteOff(note, 0, midiChan);
 #endif
@@ -758,6 +782,7 @@ void sendNoteOff(int note) {
 
 void sendCC(int CC, int value) {
   if (!((average1 == 0) && (faderValue == 8))) {  // don't send messages when enabling settings mode
+#if ENABLE_BLE
     if ((valOutput == 1) || (valOutput == 2)) {
       midiPacket[2] = midiChan + 176;
       midiPacket[3] = CC;
@@ -765,6 +790,7 @@ void sendCC(int CC, int value) {
       pCharacteristic->setValue(midiPacket, 5);
       pCharacteristic->notify();
     }
+#endif
 #if ENABLE_TRS
     if ((valOutput == 0) || (valOutput == 2)) DIN_MIDI.sendControlChange(CC, value, midiChan);
 #endif
