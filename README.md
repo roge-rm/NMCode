@@ -15,7 +15,32 @@ I have added the following functionality:
 These settings can be saved to 8 preset slots, each of which can be quickly recalled at boot.
 
 *If you want to use this firmware without doing the hardware modification simply set **#define ENABLE_TRS** to **false** instead of **true**. 
-This will exclude any code related to sending data via TRS and will also skip the first selection step below (the device will boot staight to MIDI channel selection).*
+This will exclude any code related to sending data via TRS and will also skip the first selection step below (the device will boot staight to MIDI channel selection).
+If you want to disable Bluetooth MIDI and only use TRS MIDI, set **#define ENABLE_BLE** to **false**.
+Don't set them both to false, or the device won't do much of note.
+Additionally, the option is added to change the vertical order of the buttons, so they're laid out as follows:*
+<table>
+  <tr>
+    <th>09</th>
+    <th>10</th>
+    <th>11</th>
+    <th>12</th>
+  </tr>
+  <tr>
+    <th>05</th>
+    <th>06</th>
+    <th>07</th>
+    <th>08</th>
+  </tr>
+  <tr>
+    <th>01</th>
+    <th>02</th>
+    <th>03</th>
+    <th>04</th>
+  </tr>
+</table>
+*If you would like to configure the buttons this way, set **#define UPWARD_BUTTONS** to **true**.
+Currently no functionality is available to change the button layout without recompiling and reflashing firmware.*
 
 <img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/rev2_2.jpg" width="400">
 
