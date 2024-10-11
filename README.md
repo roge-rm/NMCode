@@ -100,6 +100,9 @@ If presets have not been set up they will be launched with the default settings 
 
 Once booted the buttons are reassigned to whatever scale you chose, starting from the top left, with the root note of choice. The rotary knob will function as set above and the fader will choose the octave, as before.
 
+***Please note:
+When the NMSVE is turned on the ESP32 chip sends diagnostic debug info on the first serial port. As this is where the MIDI out is connected any devices attached will receive a burst of non MIDI data that may be interpreted strangely (often as a few notes and a transport start command). I suggest leaving the MIDI cable disconnected until after turning the NMSVE on to avoid this.***
+
 ---
 
 ### Changing Settings
