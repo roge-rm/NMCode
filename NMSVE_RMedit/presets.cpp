@@ -65,11 +65,11 @@ void setupMode()
 
 void setupOutput()
 { // select output mode between TRS only, BT only, or both
-#if ENABLE_TRS
+#ifdef FIXEDOUTPUT
+  valOutput = FIXEDOUTPUT;
+#else
   flashLEDs(1);
   valOutput = waitForButton(1200, BTN4); // buttons 1-3
-#else
-  valOutput = 1;
 #endif
 }
 
@@ -162,10 +162,10 @@ void recallPrefs(int presetNum)
   valRoot = getPref(presetNum, 3, DEFAULTROOT, 0, 11);
   chordMode = getPref(presetNum, 4, 0, 0, 2);
   chordVoicing = getPref(presetNum, 5, 0, 0, 1);
-#if ENABLE_TRS
-  valOutput = getPref(presetNum, 6, DEFAULTOUTPUT, 0, 2);
+#ifdef FIXEDOUTPUT
+  valOutput = FIXEDOUTPUT; // a preset saved with a different output can't use one that isn't compiled in
 #else
-  valOutput = 1;
+  valOutput = getPref(presetNum, 6, DEFAULTOUTPUT, 0, 2);
 #endif
   knobFunction = getPref(presetNum, 7, DEFAULTKNOB, 0, 3);
   if (knobFunction != 0)
