@@ -10,6 +10,11 @@
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h>
+#if __has_include(<esp_mac.h>)
+#include <esp_mac.h> // esp_read_mac() moved here in newer ESP-IDF versions
+#else
+#include <esp_system.h>
+#endif
 
 #define SERVICE_UUID "03b80e5a-ede8-4b33-a751-6ce34ec4c700"
 #define CHARACTERISTIC_UUID "7772e5db-3868-4112-a1a9-f2669d106bf3"
@@ -65,7 +70,12 @@ void initOutputs()
 #if ENABLE_BLE
   if (useBLE() && (pCharacteristic == nullptr))
   {
-    BLEDevice::init(BLENAME);
+    // add the last 3 bytes of the Bluetooth address to the name so several units can be told apart
+    uint8_t mac[6];
+    esp_read_mac(mac, ESP_MAC_BT);
+    char bleName[24];
+    snprintf(bleName, sizeof bleName, "%s-%02X%02X%02X", BLENAME, mac[3], mac[4], mac[5]);
+    BLEDevice::init(bleName);
 
     // Create the BLE Server
     BLEServer *pServer = BLEDevice::createServer();

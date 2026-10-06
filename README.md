@@ -110,7 +110,7 @@ Notes are assigned in scale order from button 1 upward, starting on the chosen r
 #### LEDs
 * The **green** LED blinks while the NMSVE is waiting for you to choose something: a preset, a setup step or a preset slot.
 * Both LEDs **flash** together to confirm a choice.
-* With Bluetooth output on, the **blue** LED blinks until a device connects, then stays lit. The Bluetooth device is called `NMSVE-rm`. TRS output works while Bluetooth is waiting to connect.
+* With Bluetooth output on, the **blue** LED blinks until a device connects, then stays lit. The Bluetooth device is called `NMSVE-rm-` followed by six characters unique to your unit (the end of its Bluetooth address, e.g. `NMSVE-rm-3AF21C`), so several NMSVEs can be told apart. TRS output works while Bluetooth is waiting to connect.
 
 ### Starting up
 At power-up the green LED blinks while the NMSVE waits for a choice:
