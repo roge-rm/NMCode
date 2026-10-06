@@ -22,7 +22,7 @@
 #define DEFAULTCHAN 9            // default MIDI channel
 #define DEFAULTKNOB 0            // default knob function (0 = velocity, 1 = modulation, 2 = pan, 3 = expression)
 #define DEFAULTVELOCITY 100      // default velocity
-#define BLENAME "NMSVE-rm"       // name for BLE device
+#define BLENAME "NMSVE-rm"       // name for BLE device - the last 3 bytes of the Bluetooth address are added so each unit has its own name, e.g. NMSVE-rm-3AF21C
 #define BUTTONHOLDTIME 1000      // number of ms to hold button for second function
 
 #define NUMSCALES 16 // number of scales available (see scales[] in notes.cpp)
