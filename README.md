@@ -16,7 +16,20 @@ I have added the following functionality:
 These settings can be saved to 11 preset slots, each of which can be quickly recalled at boot.
 
 *If you want to use this firmware without doing the hardware modification simply set **#define ENABLE_TRS** to **false** instead of **true** in `NMSVE_RMedit/config.h`. 
-This will exclude any code related to sending data via TRS and will also skip the first selection step below (the device will boot staight to MIDI channel selection).*
+This will exclude any code related to sending data via TRS and will also skip the first selection step below (the device will boot staight to MIDI channel selection).
+If you want to disable Bluetooth MIDI and only use TRS MIDI, set **#define ENABLE_BLE** to **false** - the output selection step is skipped in that case too. They can't both be set to false (the code won't compile).*
+
+*Setting **#define UPWARD_BUTTONS** to **true** reverses the vertical order of the buttons so notes climb from the bottom row up:*
+
+| | | | |
+| --- | --- | --- | --- |
+| 9 | 10 | 11 | 12 |
+| 5 | 6 | 7 | 8 |
+| 1 | 2 | 3 | 4 |
+
+*Button numbers throughout this README follow whichever layout is compiled in. The button layout can't be changed without recompiling and reflashing the firmware.*
+
+*(`ENABLE_BLE` and `UPWARD_BUTTONS` are based on options originally contributed by FalseTragedian.)*
 
 <img src="https://raw.githubusercontent.com/hunked/NMCode/main/images/rev2_2.jpg" width="400">
 

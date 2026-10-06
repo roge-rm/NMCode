@@ -3,7 +3,17 @@
 
 #define FIRMWARE_VERSION 20261006
 
-#define ENABLE_TRS true // set to false to use without hardware modification
+#define ENABLE_TRS true      // set to false to use without hardware modification
+#define ENABLE_BLE true      // set to false to disable Bluetooth MIDI and only use TRS
+#define UPWARD_BUTTONS false // set to true to reverse the vertical button order (1-4 on the bottom row, 9-12 on the top)
+
+#if !ENABLE_TRS && !ENABLE_BLE
+#error "ENABLE_TRS and ENABLE_BLE can't both be false - the device would have no MIDI output"
+#endif
+
+#if !(ENABLE_TRS && ENABLE_BLE)
+#define FIXEDOUTPUT (ENABLE_TRS ? 0 : 1) // only one output is compiled in, so the output setting is fixed to it
+#endif
 
 // set defaults here
 #define DEFAULTOUTPUT 0          // default output method (0 = TRS only, 1 = BT only, 2 = both)

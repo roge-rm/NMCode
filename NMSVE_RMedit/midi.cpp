@@ -1,25 +1,29 @@
 #include <Arduino.h>
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
-#include <BLE2902.h>
 #include <MIDI.h>
 
 #include "config.h"
 #include "globals.h"
 #include "functions.h"
 
+#if ENABLE_BLE
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLE2902.h>
+
 #define SERVICE_UUID "03b80e5a-ede8-4b33-a751-6ce34ec4c700"
 #define CHARACTERISTIC_UUID "7772e5db-3868-4112-a1a9-f2669d106bf3"
+#endif
 
 #if ENABLE_TRS
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial, DIN_MIDI);
 static bool trsStarted = false;
 #endif
 
-static BLECharacteristic *pCharacteristic = nullptr; // stays null until BLE output is first enabled
-
 static int buttonPlayed[4][12]; // what notes were played by each button last (in case the octave/scale is changed while a note is being played; to prevent hung notes), -1 = none
+
+#if ENABLE_BLE
+static BLECharacteristic *pCharacteristic = nullptr; // stays null until BLE output is first enabled
 
 static uint8_t midiPacket[] = {
     0x80, // header
@@ -42,6 +46,7 @@ class MyServerCallbacks : public BLEServerCallbacks
     pServer->getAdvertising()->start(); // keep advertising so the device can reconnect
   }
 };
+#endif
 
 static bool useTRS() { return (valOutput == 0) || (valOutput == 2); }
 static bool useBLE() { return (valOutput == 1) || (valOutput == 2); }
@@ -55,10 +60,9 @@ void initOutputs()
     DIN_MIDI.begin(MIDI_CHANNEL_OMNI);
     trsStarted = true;
   }
-#else
-  valOutput = 1;
 #endif
 
+#if ENABLE_BLE
   if (useBLE() && (pCharacteristic == nullptr))
   {
     BLEDevice::init(BLENAME);
@@ -87,6 +91,7 @@ void initOutputs()
     pAdvertising->addServiceUUID(pService->getUUID());
     pAdvertising->start();
   }
+#endif
 
   for (int i = 0; i < 12; i++)
     for (int n = 0; n < 4; n++)
@@ -103,6 +108,7 @@ void readMIDI()
 
 static void sendBLE(uint8_t status, uint8_t data1, uint8_t data2)
 {
+#if ENABLE_BLE
   if (!useBLE() || (pCharacteristic == nullptr) || !deviceConnected)
     return;
   midiPacket[2] = status | ((midiChan - 1) & 0x0F); // midiChan is 1-16, the status byte's channel nibble is 0-15
@@ -110,6 +116,7 @@ static void sendBLE(uint8_t status, uint8_t data1, uint8_t data2)
   midiPacket[4] = data2;
   pCharacteristic->setValue(midiPacket, 5);
   pCharacteristic->notify();
+#endif
 }
 
 static bool sendNoteOn(int note)
